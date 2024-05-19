@@ -5,5 +5,8 @@ edition = "2021"
 default-run = "dechib"
 
 [dependencies]
+anyhow = "1.0.86"
 rocksdb = "0.22.0"
 sqlparser = "0.46.0"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
