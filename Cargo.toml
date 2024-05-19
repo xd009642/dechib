@@ -2,6 +2,7 @@
 name = "dechib"
 version = "0.1.0"
 edition = "2021"
+default-run = "dechib"
 
 [dependencies]
 rocksdb = "0.22.0"
