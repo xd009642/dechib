@@ -61,10 +61,14 @@ impl StorageEngine {
             .with_context(|| format!("No table {} exists", name.as_ref()))?;
         let bytes = self
             .db
-            .get_cf(&handle, TABLE_METADATA_KEY)?
+            .get_pinned_cf(&handle, TABLE_METADATA_KEY)?
             .context("No metadata for table")?;
         let res = from_bytes(&bytes)?;
         Ok(res)
+    }
+
+    pub fn insert_row(&self, _name: impl AsRef<str>) -> anyhow::Result<()> {
+        todo!()
     }
 }
 
