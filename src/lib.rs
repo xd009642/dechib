@@ -1,6 +1,7 @@
 use crate::query_engine::QueryEngine;
 use crate::storage_engine::StorageEngine;
-use std::env;
+use crate::types::*;
+use std::{env, path::Path};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 pub mod query_engine;
@@ -13,6 +14,13 @@ pub struct Instance {
 }
 
 impl Instance {
+    pub fn new_with_path(path: impl AsRef<Path>) -> Self {
+        Self {
+            storage: StorageEngine::new_with_path(path),
+            query: QueryEngine::default(),
+        }
+    }
+
     pub fn new() -> Self {
         Self {
             storage: StorageEngine::new(),
@@ -20,9 +28,16 @@ impl Instance {
         }
     }
 
-    pub fn execute(&self, query: &str) -> anyhow::Result<()> {
-        self.query.create_execution_plan(query)?;
-        todo!();
+    pub fn execute(&mut self, query: &str) -> anyhow::Result<()> {
+        let statements = self.query.process_sql(query)?;
+        for statement in &statements {
+            match statement {
+                Command::CreateTable(opts) => {
+                    self.storage.create_table(opts)?;
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -36,4 +51,68 @@ pub fn setup_logging() {
         .with(fmt::layer())
         .with(filter)
         .init();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlparser::ast::DataType;
+    use std::collections::BTreeMap;
+    use uuid::Uuid;
+
+    struct TableHandle {
+        path: String,
+    }
+
+    impl TableHandle {
+        fn new() -> Self {
+            Self {
+                path: format!("./target/{}", Uuid::new_v4()),
+            }
+        }
+    }
+
+    impl Drop for TableHandle {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+
+    #[test]
+    fn create_table() {
+        let handle = TableHandle::new();
+        let mut engine = Instance::new_with_path(&handle.path);
+
+        let mut columns = BTreeMap::new();
+        columns.insert(
+            "id".to_string(),
+            ColumnDescriptor {
+                datatype: DataType::UnsignedInteger(None),
+                not_null: true,
+                unique: true,
+                primary_key: true,
+                ..Default::default()
+            },
+        );
+        columns.insert(
+            "name".to_string(),
+            ColumnDescriptor {
+                datatype: DataType::Text,
+                not_null: true,
+                ..Default::default()
+            },
+        );
+
+        engine.execute("CREATE TABLE users (id INTEGER UNSIGNED NOT NULL UNIQUE PRIMARY KEY, name TEXT NOT NULL);").unwrap();
+
+        let metadata = engine.storage.table_metadata("users").unwrap();
+
+        assert_eq!(metadata, columns);
+
+        std::mem::drop(engine);
+
+        // Can we open it again and have it work?
+
+        let _engine = StorageEngine::new_with_path(&handle.path);
+    }
 }
