@@ -72,7 +72,23 @@ impl StorageEngine {
         Ok(res)
     }
 
-    pub fn insert_row(&self, _name: impl AsRef<str>) -> anyhow::Result<()> {
+    pub fn insert_rows(&mut self, insert_op: &InsertOptions) -> anyhow::Result<()> {
+        // We should validate our metadata against our column data types!
+        let metadata = self.table_metadata(&insert_op.table)?;
+
+        // First lets just go over and make sure column names match etc
+
+        // handle must exist if we got metadata
+        let handle = self.db.cf_handle(&insert_op.table).unwrap();
+
+        for record in insert_op.records() {
+            // validate record
+
+            // If valid insert
+            let record = to_allocvec(&record)?;
+            //handle.put_cf_opt(&handle,
+            // If there's an invalid one should all inserts fail?
+        }
         todo!()
     }
 }

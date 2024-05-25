@@ -35,6 +35,9 @@ impl Instance {
                 Command::CreateTable(opts) => {
                     self.storage.create_table(opts)?;
                 }
+                Command::Insert(opts) => {
+                    self.storage.insert_rows(opts)?;
+                }
             }
         }
         Ok(())
