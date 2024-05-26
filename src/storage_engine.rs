@@ -1,16 +1,21 @@
 use crate::types::*;
 use anyhow::Context;
 use postcard::{from_bytes, to_allocvec};
-use rocksdb::{Options, DB};
+use rocksdb::{Options, WriteBatch, DB};
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::atomic::AtomicUsize;
+use tracing::debug;
 
 const TABLE_METADATA_KEY: &'static str = "__metadata__";
 
 pub struct StorageEngine {
     db: DB,
     auto_incs: BTreeMap<Entry, AtomicUsize>,
+}
+
+fn generate_pk_name(record: &Record, metadata: &ColumnDescriptors) -> String {
+    todo!()
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Ord, PartialOrd)]
@@ -99,26 +104,39 @@ impl StorageEngine {
             anyhow::bail!("Column {} not present in table", bad_column);
         }
 
-        // Now find missing columns that we need!
-        if let Some((missing, _)) = metadata
-            .iter()
-            .filter(|(_, v)| v.needs_value())
-            .find(|(k, _)| !insert_op.columns.contains(k))
-        {
-            anyhow::bail!("Required column {} is missing", missing)
+        let mut values_to_add = vec![];
+
+        for (column, desc) in metadata.iter() {
+            if desc.needs_value() {
+                // Now find missing columns that we need!
+                if !insert_op.columns.contains(column) {
+                    anyhow::bail!("Required column {} is missing", column)
+                }
+            } else if !insert_op.columns.contains(column) && desc.should_generate() {
+                values_to_add.push(column);
+            }
         }
+        debug!("Adding {:?} to the records", values_to_add);
 
         // handle must exist if we got metadata
+        let mut transaction = WriteBatch::default();
         let handle = self.db.cf_handle(&insert_op.table).unwrap();
 
-        for record in insert_op.records() {
+        for mut record in insert_op.records() {
             // validate record
+
+            // Add things like missing default fields
+            for column in &values_to_add {
+                todo!()
+            }
+
+            let pk = generate_pk_name(&record, &metadata);
 
             // If valid insert
             let record = to_allocvec(&record)?;
-            //handle.put_cf_opt(&handle,
-            // If there's an invalid one should all inserts fail?
+            transaction.put_cf(&handle, &pk, &record);
         }
+        self.db.write(transaction)?;
         todo!()
     }
 }

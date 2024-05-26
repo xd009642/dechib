@@ -82,6 +82,10 @@ impl ColumnDescriptor {
     pub fn needs_value(&self) -> bool {
         self.not_null && !(self.primary_key || self.auto_increment || self.default.is_some())
     }
+
+    pub fn should_generate(&self) -> bool {
+        self.auto_increment || self.default.is_some() || self.not_null
+    }
 }
 
 impl Default for ColumnDescriptor {
