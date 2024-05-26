@@ -2,24 +2,21 @@ use crate::types::*;
 use anyhow::Context;
 use postcard::{from_bytes, to_allocvec};
 use rocksdb::{Options, DB};
+use std::collections::BTreeMap;
 use std::path::Path;
+use std::sync::atomic::AtomicUsize;
 
 const TABLE_METADATA_KEY: &'static str = "__metadata__";
 
 pub struct StorageEngine {
     db: DB,
+    auto_incs: BTreeMap<Entry, AtomicUsize>,
 }
 
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Ord, PartialOrd)]
 pub struct Entry {
     table: String,
-    pk: String,
     column: String,
-}
-
-impl Entry {
-    fn id(&self) -> String {
-        format!("{}/{}/{}", self.table, self.pk, self.column)
-    }
 }
 
 impl StorageEngine {
@@ -34,7 +31,10 @@ impl StorageEngine {
             Ok(cf) => DB::open_cf(&opts, path, &cf).expect("Failed to load storage"),
             Err(_) => DB::open(&opts, path).expect("Failed to create storage"),
         };
-        Self { db }
+        Self {
+            db,
+            auto_incs: BTreeMap::new(),
+        }
     }
 
     pub fn handle(&self) -> &DB {
@@ -56,6 +56,20 @@ impl StorageEngine {
             TABLE_METADATA_KEY,
             to_allocvec(&create_table.columns)?,
         )?;
+
+        for (column, props) in create_table
+            .columns
+            .iter()
+            .filter(|(_, v)| v.auto_increment)
+        {
+            let initial = AtomicUsize::new(0);
+            let entry = Entry {
+                table: name.to_string(),
+                column: column.to_string(),
+            };
+            self.auto_incs.insert(entry, initial);
+        }
+
         Ok(())
     }
 
@@ -77,6 +91,22 @@ impl StorageEngine {
         let metadata = self.table_metadata(&insert_op.table)?;
 
         // First lets just go over and make sure column names match etc
+        if let Some(bad_column) = insert_op
+            .columns
+            .iter()
+            .find(|x| !metadata.contains_key(x.as_str()))
+        {
+            anyhow::bail!("Column {} not present in table", bad_column);
+        }
+
+        // Now find missing columns that we need!
+        if let Some((missing, _)) = metadata
+            .iter()
+            .filter(|(_, v)| v.needs_value())
+            .find(|(k, _)| !insert_op.columns.contains(k))
+        {
+            anyhow::bail!("Required column {} is missing", missing)
+        }
 
         // handle must exist if we got metadata
         let handle = self.db.cf_handle(&insert_op.table).unwrap();
@@ -96,7 +126,7 @@ impl StorageEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sqlparser::ast::DataType;
+    use sqlparser::ast::{self, DataType, Expr};
     use std::collections::BTreeMap;
     use uuid::Uuid;
 
@@ -118,11 +148,7 @@ mod tests {
         }
     }
 
-    #[test]
-    fn create_table() {
-        let handle = TableHandle::new();
-        let mut engine = StorageEngine::new_with_path(&handle.path);
-
+    fn default_fixture() -> CreateTableOptions {
         let mut columns = BTreeMap::new();
         columns.insert(
             "id".to_string(),
@@ -143,10 +169,30 @@ mod tests {
             },
         );
 
-        let opt = CreateTableOptions {
+        let expr = Expr::Value(ast::Value::SingleQuotedString("London".to_string()));
+
+        columns.insert(
+            "city".to_string(),
+            ColumnDescriptor {
+                datatype: DataType::Text,
+                not_null: true,
+                default: Some(expr),
+                ..Default::default()
+            },
+        );
+
+        CreateTableOptions {
             name: "users".to_string(),
             columns,
-        };
+        }
+    }
+
+    #[test]
+    fn create_table() {
+        let handle = TableHandle::new();
+        let mut engine = StorageEngine::new_with_path(&handle.path);
+
+        let opt = default_fixture();
 
         engine.create_table(&opt).unwrap();
 
@@ -165,30 +211,8 @@ mod tests {
     fn error_if_table_already_exists() {
         let handle = TableHandle::new();
         let mut engine = StorageEngine::new_with_path(&handle.path);
-        let mut columns = BTreeMap::new();
-        columns.insert(
-            "id".to_string(),
-            ColumnDescriptor {
-                datatype: DataType::UnsignedInteger(None),
-                not_null: true,
-                unique: true,
-                primary_key: true,
-                ..Default::default()
-            },
-        );
-        columns.insert(
-            "name".to_string(),
-            ColumnDescriptor {
-                datatype: DataType::Text,
-                not_null: true,
-                ..Default::default()
-            },
-        );
 
-        let opt = CreateTableOptions {
-            name: "users".to_string(),
-            columns,
-        };
+        let opt = default_fixture();
 
         engine.create_table(&opt).unwrap();
         assert!(engine.create_table(&opt).is_err());
@@ -203,5 +227,43 @@ mod tests {
         let mut engine = StorageEngine::new_with_path(&path);
 
         assert!(engine.table_metadata("users").is_err());
+    }
+
+    #[test]
+    fn invalid_insert_ops() {
+        let handle = TableHandle::new();
+        let mut engine = StorageEngine::new_with_path(&handle.path);
+
+        let opt = default_fixture();
+
+        engine.create_table(&opt).unwrap();
+
+        let insert = InsertOptions {
+            table: "doesnt_exist".to_string(),
+            columns: vec!["name".to_string()],
+            values: vec![vec![Value::Text("Daniel".to_string()).into()]],
+        };
+        // Table doesn't exist should fail
+        assert!(engine.insert_rows(&insert).is_err());
+
+        let insert = InsertOptions {
+            table: "users".to_string(),
+            columns: vec!["city".to_string()],
+            values: vec![vec![Value::Text("London".to_string()).into()]],
+        };
+
+        // Missing name column should fail as it's not-null
+        assert!(engine.insert_rows(&insert).is_err());
+
+        let insert = InsertOptions {
+            table: "users".to_string(),
+            columns: vec!["toshi".to_string()],
+            values: vec![vec![Value::Text("London".to_string()).into()]],
+        };
+
+        // Missing name column should fail as it's not-null
+        assert!(engine.insert_rows(&insert).is_err());
+
+        // TODO mismatched types, foreign key violations, setting columns that shouldn't be set?
     }
 }

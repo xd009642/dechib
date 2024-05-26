@@ -2,7 +2,7 @@ use anyhow::Context;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlparser::ast::{self, ColumnOption, DataType, Expr, Insert, SetExpr, Statement};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::convert::TryFrom;
 use std::rc::Rc;
 use tracing::warn;
@@ -72,9 +72,16 @@ pub struct ColumnDescriptor {
     pub not_null: bool,
     pub unique: bool,
     pub primary_key: bool,
+    pub auto_increment: bool,
     pub foreign_key: Option<(String, String)>,
     pub default: Option<Expr>,
     // skipping check and create index as things I shalln't support (yet)
+}
+
+impl ColumnDescriptor {
+    pub fn needs_value(&self) -> bool {
+        self.not_null && !(self.primary_key || self.auto_increment || self.default.is_some())
+    }
 }
 
 impl Default for ColumnDescriptor {
@@ -82,6 +89,7 @@ impl Default for ColumnDescriptor {
         Self {
             datatype: DataType::Unspecified,
             not_null: false,
+            auto_increment: false,
             unique: false,
             primary_key: false,
             foreign_key: None,
@@ -119,6 +127,10 @@ impl InsertOptions {
                 .map(|(col, val)| (col.to_string(), val.clone()))
                 .collect(),
         })
+    }
+
+    fn is_empty(&self) -> bool {
+        self.columns.is_empty() || self.values.is_empty()
     }
 }
 
@@ -187,6 +199,12 @@ impl TryFrom<&Statement> for Command {
 
 pub fn process_insert(insert: &Insert) -> anyhow::Result<Command> {
     let columns = insert.columns.iter().map(|x| x.to_string()).collect();
+    let mut dup_check = HashSet::new();
+    for col in &columns {
+        if !dup_check.insert(col) {
+            anyhow::bail!("Column '{}' is present multiple times in insert query", col);
+        }
+    }
     let mut values = vec![];
     if let Some(source) = &insert.source {
         match source.body.as_ref() {

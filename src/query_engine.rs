@@ -28,3 +28,16 @@ impl QueryEngine {
         todo!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn duplicate_column_in_insert() {
+        let engine = QueryEngine::default();
+        let res = engine
+            .process_sql("INSERT INTO Persons (FirstName, FirstName) VALUES ('Daniel', 'Daniel');");
+        assert!(res.is_err(), "{:?} should be error", res);
+    }
+}

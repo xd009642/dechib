@@ -2,6 +2,7 @@ use crate::query_engine::QueryEngine;
 use crate::storage_engine::StorageEngine;
 use crate::types::*;
 use std::{env, path::Path};
+use tracing::debug;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 pub mod query_engine;
@@ -31,6 +32,7 @@ impl Instance {
     pub fn execute(&mut self, query: &str) -> anyhow::Result<()> {
         let statements = self.query.process_sql(query)?;
         for statement in &statements {
+            debug!("Running: {:?}", statement);
             match statement {
                 Command::CreateTable(opts) => {
                     self.storage.create_table(opts)?;
