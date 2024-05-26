@@ -86,6 +86,10 @@ impl ColumnDescriptor {
     pub fn should_generate(&self) -> bool {
         self.auto_increment || self.default.is_some() || self.not_null
     }
+
+    pub fn value_matches_type(&self, value: &Value) -> bool {
+        todo!()
+    }
 }
 
 impl Default for ColumnDescriptor {

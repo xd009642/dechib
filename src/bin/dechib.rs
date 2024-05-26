@@ -9,5 +9,7 @@ fn main() -> anyhow::Result<()> {
 
     instance.execute("INSERT INTO Persons (LastName, FirstName, Address, City) VALUES ('McKenna', 'Daniel', 'Never you mind', 'London');")?;
 
+    instance.execute("SELECT * FROM Persons")?;
+
     Ok(())
 }
