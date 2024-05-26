@@ -1,10 +1,13 @@
 use crate::types::*;
 use anyhow::Context;
+use bigdecimal::{BigDecimal, FromPrimitive};
 use postcard::{from_bytes, to_allocvec};
 use rocksdb::{Options, WriteBatch, DB};
+use sqlparser::ast::Expr;
 use std::collections::BTreeMap;
 use std::path::Path;
-use std::sync::atomic::AtomicUsize;
+use std::rc::Rc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use tracing::debug;
 
 const TABLE_METADATA_KEY: &'static str = "__metadata__";
@@ -14,8 +17,23 @@ pub struct StorageEngine {
     auto_incs: BTreeMap<Entry, AtomicUsize>,
 }
 
+pub enum Action<'a> {
+    Increment(&'a AtomicUsize),
+    ApplyConstant(Rc<Value>),
+}
+
 fn generate_pk_name(record: &Record, metadata: &ColumnDescriptors) -> String {
-    todo!()
+    let mut name = String::new();
+    for key in metadata
+        .iter()
+        .filter(|(_, desc)| !desc.primary_key)
+        .map(|(k, _)| k)
+    {
+        name.push_str(&format!("{}/", key));
+    }
+    name.pop();
+    assert!(!name.is_empty());
+    name
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Ord, PartialOrd)]
@@ -56,6 +74,10 @@ impl StorageEngine {
         let name = create_table.name.as_ref();
         self.db.create_cf(name, &Options::default())?;
         let handle = self.db.cf_handle(name).unwrap();
+
+        // TODO we should put in an implict primary key if there isn't one present (it just makes
+        // other things work nicer)
+
         self.db.put_cf(
             &handle,
             TABLE_METADATA_KEY,
@@ -67,7 +89,7 @@ impl StorageEngine {
             .iter()
             .filter(|(_, v)| v.auto_increment)
         {
-            let initial = AtomicUsize::new(0);
+            let initial = AtomicUsize::new(1);
             let entry = Entry {
                 table: name.to_string(),
                 column: column.to_string(),
@@ -104,7 +126,7 @@ impl StorageEngine {
             anyhow::bail!("Column {} not present in table", bad_column);
         }
 
-        let mut values_to_add = vec![];
+        let mut value_actions = BTreeMap::new();
 
         for (column, desc) in metadata.iter() {
             if desc.needs_value() {
@@ -113,10 +135,28 @@ impl StorageEngine {
                     anyhow::bail!("Required column {} is missing", column)
                 }
             } else if !insert_op.columns.contains(column) && desc.should_generate() {
-                values_to_add.push(column);
+                if let Some(Expr::Value(val)) = &desc.default {
+                    value_actions.insert(
+                        column,
+                        Action::ApplyConstant(Rc::new(Value::try_from(val.clone())?)),
+                    );
+                } else if desc.default.is_some() {
+                    anyhow::bail!("Unsupported default expression: {:?}", desc.default);
+                } else if desc.auto_increment {
+                    let entry = Entry {
+                        table: insert_op.table.to_string(),
+                        column: column.to_string(),
+                    };
+                    let auto_inc = self
+                        .auto_incs
+                        .get(&entry)
+                        .with_context(|| format!("No auto increment support for {}", column))?;
+                    value_actions.insert(column, Action::Increment(auto_inc));
+                } else {
+                    anyhow::bail!("Unsure how to generate value for {}", column);
+                }
             }
         }
-        debug!("Adding {:?} to the records", values_to_add);
 
         // handle must exist if we got metadata
         let mut transaction = WriteBatch::default();
@@ -126,8 +166,15 @@ impl StorageEngine {
             // validate record
 
             // Add things like missing default fields
-            for column in &values_to_add {
-                todo!()
+            for (column, action) in &value_actions {
+                let value = match action {
+                    Action::Increment(val) => {
+                        let value = val.fetch_add(1, Ordering::SeqCst);
+                        Rc::new(Value::Number(BigDecimal::from_usize(value).unwrap()))
+                    }
+                    Action::ApplyConstant(con) => con.clone(),
+                };
+                record.columns.insert(column.to_string(), value);
             }
 
             let pk = generate_pk_name(&record, &metadata);
@@ -137,7 +184,7 @@ impl StorageEngine {
             transaction.put_cf(&handle, &pk, &record);
         }
         self.db.write(transaction)?;
-        todo!()
+        Ok(())
     }
 }
 
@@ -175,6 +222,7 @@ mod tests {
                 not_null: true,
                 unique: true,
                 primary_key: true,
+                auto_increment: true,
                 ..Default::default()
             },
         );
@@ -283,5 +331,31 @@ mod tests {
         assert!(engine.insert_rows(&insert).is_err());
 
         // TODO mismatched types, foreign key violations, setting columns that shouldn't be set?
+    }
+
+    #[test]
+    fn primary_key_increments() {
+        let handle = TableHandle::new();
+        let mut engine = StorageEngine::new_with_path(&handle.path);
+
+        let opt = default_fixture();
+
+        engine.create_table(&opt).unwrap();
+
+        let insert = InsertOptions {
+            table: "users".to_string(),
+            columns: vec!["name".to_string()],
+            values: vec![vec![Value::Text("Daniel".to_string()).into()]],
+        };
+
+        engine.insert_rows(&insert).unwrap();
+        let pk = Entry {
+            table: "users".to_string(),
+            column: "id".to_string(),
+        };
+        assert_eq!(engine.auto_incs[&pk].load(Ordering::Relaxed), 2);
+
+        engine.insert_rows(&insert).unwrap();
+        assert_eq!(engine.auto_incs[&pk].load(Ordering::Relaxed), 3);
     }
 }
