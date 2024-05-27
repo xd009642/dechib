@@ -18,19 +18,6 @@ pub enum Value {
     Null,
 }
 
-impl Value {
-    /// Checks partially if this value matches the descriptor, can't check for uniqueness or key
-    /// constraints.
-    pub fn matches(&self, descriptor: &ColumnDescriptor) -> bool {
-        if matches!(self, Self::Null if descriptor.not_null) {
-            false
-        } else {
-            // Need to match datatypes :yawn:
-            true
-        }
-    }
-}
-
 impl TryFrom<ast::Value> for Value {
     type Error = anyhow::Error;
 
@@ -137,6 +124,7 @@ impl Default for ColumnDescriptor {
 pub enum Command {
     CreateTable(CreateTableOptions),
     Insert(InsertOptions),
+    Select(QueryOptions),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -150,6 +138,11 @@ pub struct InsertOptions {
     pub table: String,
     pub columns: Vec<String>,
     pub values: Vec<Vec<Rc<Value>>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QueryOptions {
+    //TODO maybe I just want to keep the query type
 }
 
 impl InsertOptions {
@@ -225,6 +218,7 @@ impl TryFrom<&Statement> for Command {
                 }))
             }
             Statement::Insert(insert) => process_insert(insert),
+            Statement::Query(query) => process_query(query),
             e => {
                 anyhow::bail!("Unsupported Statement: {}", e);
             }
@@ -232,7 +226,11 @@ impl TryFrom<&Statement> for Command {
     }
 }
 
-pub fn process_insert(insert: &Insert) -> anyhow::Result<Command> {
+fn process_query(query: &Query) -> anyhow::Result<Command> {
+    todo!()
+}
+
+fn process_insert(insert: &Insert) -> anyhow::Result<Command> {
     let columns = insert.columns.iter().map(|x| x.to_string()).collect();
     let mut dup_check = HashSet::new();
     for col in &columns {

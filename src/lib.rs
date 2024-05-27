@@ -40,6 +40,9 @@ impl Instance {
                 Command::Insert(opts) => {
                     self.storage.insert_rows(opts)?;
                 }
+                Command::Select(_) => {
+                    anyhow::bail!("Currently don't support SELECT queries");
+                }
             }
         }
         Ok(())
