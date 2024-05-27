@@ -5,7 +5,7 @@ use sqlparser::ast::{self, ColumnOption, DataType, Expr, Insert, SetExpr, Statem
 use std::collections::{BTreeMap, HashSet};
 use std::convert::TryFrom;
 use std::rc::Rc;
-use tracing::warn;
+use tracing::{error, warn};
 
 pub type ColumnDescriptors = BTreeMap<String, ColumnDescriptor>;
 
@@ -88,7 +88,34 @@ impl ColumnDescriptor {
     }
 
     pub fn value_matches_type(&self, value: &Value) -> bool {
-        todo!()
+        match (value, &self.datatype) {
+            (
+                Value::Text(_),
+                DataType::Text
+                | DataType::Character(_)
+                | DataType::Char(_)
+                | DataType::CharacterVarying(_)
+                | DataType::Varchar(_)
+                | DataType::Nvarchar(_),
+            ) => true,
+            (Value::Boolean(_), DataType::Bool | DataType::Boolean) => true,
+            (
+                Value::Number(_),
+                DataType::Numeric(_)
+                | DataType::Decimal(_)
+                | DataType::Dec(_)
+                | DataType::Float(_)
+                | DataType::Int(_)
+                | DataType::Real
+                | DataType::Double,
+            ) => true,
+            (Value::Bytes(_), DataType::Bytea | DataType::Blob(_) | DataType::Bytes(_)) => true,
+            (Value::Null, _) if !self.not_null => true,
+            (val, ty) => {
+                error!("{:?} does not match type {}", val, ty);
+                false
+            }
+        }
     }
 }
 

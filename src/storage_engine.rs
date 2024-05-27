@@ -164,6 +164,11 @@ impl StorageEngine {
 
         for mut record in insert_op.records() {
             // validate record
+            for (name, value) in record.columns.iter() {
+                if !metadata[name].value_matches_type(value) {
+                    anyhow::bail!("Value for {} doesn't match column type", name);
+                }
+            }
 
             // Add things like missing default fields
             for (column, action) in &value_actions {
@@ -330,7 +335,16 @@ mod tests {
         // Missing name column should fail as it's not-null
         assert!(engine.insert_rows(&insert).is_err());
 
-        // TODO mismatched types, foreign key violations, setting columns that shouldn't be set?
+        let insert = InsertOptions {
+            table: "users".to_string(),
+            columns: vec!["name".to_string()],
+            values: vec![vec![Value::Boolean(false).into()]],
+        };
+
+        // Incorrect type should fail checking
+        assert!(engine.insert_rows(&insert).is_err());
+
+        // TODO foreign key violations, setting columns that shouldn't be set?
     }
 
     #[test]
