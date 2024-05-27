@@ -4,6 +4,9 @@ A simple database implementation in order to learn more about databases. **DO
 NOT USE THIS IN PRODUCTION!**. Instead use it maybe as a reference and
 hopefully it can be of some help.
 
+Currently only the basic table storage and data insertions are supported.
+Queries and other things on WIP!
+
 ## Components
 
 A database is compromised of a number of components.
