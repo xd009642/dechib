@@ -6,6 +6,7 @@ use tracing::debug;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 pub mod query_engine;
+pub mod relational_algebra;
 pub mod storage_engine;
 pub mod types;
 

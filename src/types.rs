@@ -1,7 +1,7 @@
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
-use sqlparser::ast::{self, ColumnOption, DataType, Expr, Insert, SetExpr, Statement, Query};
+use sqlparser::ast::{self, ColumnOption, DataType, Expr, Insert, Query, SetExpr, Statement};
 use std::collections::{BTreeMap, HashSet};
 use std::convert::TryFrom;
 use std::rc::Rc;
