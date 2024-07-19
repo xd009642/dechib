@@ -12,6 +12,7 @@ postcard = { version = "1.0.8", features = ["alloc", "const_format"] }
 rocksdb = "0.22.0"
 serde = { version = "1.0.202", features = ["derive", "rc"] }
 sqlparser = { version = "0.46.0", features = ["bigdecimal", "serde"] }
+tokio = { version = "1.38.1", features = ["net", "parking_lot", "sync", "rt-multi-thread"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 uuid = { version = "1.8.0", features = ["v4"] }
