@@ -1,7 +1,7 @@
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
-use sqlparser::ast::{self, ColumnOption, DataType, Expr, Insert, SetExpr, Statement, Query};
+use sqlparser::ast::{self, ColumnOption, DataType, Expr, Insert, Query, SetExpr, Statement};
 use std::collections::{BTreeMap, HashSet};
 use std::convert::TryFrom;
 use std::rc::Rc;
@@ -93,6 +93,9 @@ impl ColumnDescriptor {
                 | DataType::Dec(_)
                 | DataType::Float(_)
                 | DataType::Int(_)
+                | DataType::UnsignedInt(_)
+                | DataType::Integer(_)
+                | DataType::UnsignedInteger(_)
                 | DataType::Real
                 | DataType::Double,
             ) => true,
