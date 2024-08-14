@@ -245,12 +245,12 @@ impl TryFrom<&Statement> for Command {
                             referred_columns,
                             ..
                         } => {
-                            let name = match name.as_ref().map(|x| x.to_string()) {
-                                Some(n) => n,
-                                None => {
-                                    anyhow::bail!("Foreign key constraint must apply to a column")
-                                }
-                            };
+                            if columns.len() != 1 {
+                                anyhow::bail!(
+                                    "Exactly one column must be specified for a foreign key"
+                                );
+                            }
+                            let name = columns[0].to_string();
                             if let Some(column_def) = descriptor.get_mut(&name) {
                                 if referred_columns.len() != 1 {
                                     anyhow::bail!(
@@ -267,6 +267,18 @@ impl TryFrom<&Statement> for Command {
                         }
                         TableConstraint::Check { .. } => {
                             anyhow::bail!("Check constraints not supported")
+                        }
+                        TableConstraint::PrimaryKey { columns, .. } => {
+                            for col in columns {
+                                if let Some(entry) = descriptor.get_mut(&col.to_string()) {
+                                    entry.primary_key = true;
+                                } else {
+                                    anyhow::bail!(
+                                        "Primary key constraint applied to not existing column: {}",
+                                        col
+                                    );
+                                }
+                            }
                         }
                         e => anyhow::bail!("MySQL constraint: {} is not supported", e),
                     }

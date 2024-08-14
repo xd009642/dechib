@@ -68,7 +68,28 @@ impl StorageEngine {
         &mut self.db
     }
 
+    fn validate_table_options(&self, create_table: &CreateTableOptions) -> anyhow::Result<()> {
+        for (column, props) in create_table
+            .columns
+            .iter()
+            .filter(|(_, x)| x.foreign_key.is_some())
+        {
+            if let Some((table, col)) = props.foreign_key.as_ref() {
+                let table_metadata = self.table_metadata(&table)?;
+                if let Some(desc) = table_metadata.get(col) {
+                    if !desc.primary_key {
+                        anyhow::bail!("Foreign key {}.{} must refer to a primary key", table, col);
+                    }
+                } else {
+                    anyhow::bail!("Column {} does not exist in {}", col, table);
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub fn create_table(&mut self, create_table: &CreateTableOptions) -> anyhow::Result<()> {
+        self.validate_table_options(create_table)?;
         // So each table should be a column family so operations that operate on different tables
         // can happen concurrently (my current understanding)
         let name = create_table.name.as_ref();
