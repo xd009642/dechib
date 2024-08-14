@@ -2,7 +2,7 @@ use crate::query_engine::QueryEngine;
 use crate::storage_engine::StorageEngine;
 use crate::types::*;
 use std::{env, path::Path};
-use tracing::debug;
+use tracing::{debug, instrument};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 pub mod query_engine;
@@ -47,6 +47,11 @@ impl Instance {
         }
         Ok(())
     }
+
+    #[cfg(test)]
+    pub fn storage(&self) -> &StorageEngine {
+        &self.storage
+    }
 }
 
 pub fn setup_logging() {
@@ -66,6 +71,7 @@ mod tests {
     use super::*;
     use sqlparser::ast::DataType;
     use std::collections::BTreeMap;
+    use tracing_test::traced_test;
     use uuid::Uuid;
 
     struct TableHandle {
@@ -87,6 +93,7 @@ mod tests {
     }
 
     #[test]
+    #[traced_test]
     fn create_table() {
         let handle = TableHandle::new();
         let mut engine = Instance::new_with_path(&handle.path);

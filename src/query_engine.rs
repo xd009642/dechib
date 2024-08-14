@@ -32,8 +32,10 @@ impl QueryEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tracing_test::traced_test;
 
     #[test]
+    #[traced_test]
     fn duplicate_column_in_insert() {
         let engine = QueryEngine::default();
         let res = engine

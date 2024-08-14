@@ -198,6 +198,7 @@ mod tests {
     use super::*;
     use sqlparser::ast::{self, DataType, Expr};
     use std::collections::BTreeMap;
+    use tracing_test::traced_test;
     use uuid::Uuid;
 
     struct TableHandle {
@@ -259,6 +260,7 @@ mod tests {
     }
 
     #[test]
+    #[traced_test]
     fn create_table() {
         let handle = TableHandle::new();
         let mut engine = StorageEngine::new_with_path(&handle.path);
@@ -279,6 +281,7 @@ mod tests {
     }
 
     #[test]
+    #[traced_test]
     fn error_if_table_already_exists() {
         let handle = TableHandle::new();
         let mut engine = StorageEngine::new_with_path(&handle.path);
@@ -290,6 +293,7 @@ mod tests {
     }
 
     #[test]
+    #[traced_test]
     fn metadata_error_on_nonexistant_table() {
         let handle = TableHandle::new();
         let mut engine = StorageEngine::new_with_path(&handle.path);
@@ -301,6 +305,7 @@ mod tests {
     }
 
     #[test]
+    #[traced_test]
     fn invalid_insert_ops() {
         let handle = TableHandle::new();
         let mut engine = StorageEngine::new_with_path(&handle.path);
@@ -348,6 +353,7 @@ mod tests {
     }
 
     #[test]
+    #[traced_test]
     fn primary_key_increments() {
         let handle = TableHandle::new();
         let mut engine = StorageEngine::new_with_path(&handle.path);

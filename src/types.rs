@@ -93,6 +93,9 @@ impl ColumnDescriptor {
                 | DataType::Dec(_)
                 | DataType::Float(_)
                 | DataType::Int(_)
+                | DataType::UnsignedInt(_)
+                | DataType::Integer(_)
+                | DataType::UnsignedInteger(_)
                 | DataType::Real
                 | DataType::Double,
             ) => true,
