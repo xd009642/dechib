@@ -1,11 +1,13 @@
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
-use sqlparser::ast::{self, ColumnOption, DataType, Expr, Insert, Query, SetExpr, Statement};
+use sqlparser::ast::{
+    self, ColumnOption, DataType, Expr, Insert, Query, SetExpr, Statement, TableConstraint,
+};
 use std::collections::{BTreeMap, HashSet};
 use std::convert::TryFrom;
 use std::rc::Rc;
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 
 pub type ColumnDescriptors = BTreeMap<String, ColumnDescriptor>;
 
@@ -169,8 +171,14 @@ impl TryFrom<&Statement> for Command {
     type Error = anyhow::Error;
 
     fn try_from(statement: &Statement) -> Result<Self, Self::Error> {
+        debug!("Processing statement {:?}", statement);
         match statement {
-            Statement::CreateTable { name, columns, .. } => {
+            Statement::CreateTable {
+                name,
+                columns,
+                constraints,
+                ..
+            } => {
                 let mut descriptor = BTreeMap::new();
                 for col in columns {
                     let entry = descriptor.entry(col.name.to_string()).or_insert_with(|| {
@@ -197,8 +205,20 @@ impl TryFrom<&Statement> for Command {
                                 entry.primary_key = *is_primary;
                                 entry.unique = true;
                             }
-                            ColumnOption::ForeignKey { .. } => {
-                                anyhow::bail!("FOREIGN KEY not yet supported")
+                            ColumnOption::ForeignKey {
+                                foreign_table,
+                                referred_columns,
+                                ..
+                            } => {
+                                if referred_columns.len() != 1 {
+                                    anyhow::bail!(
+                                        "Exactly one column must be specified for a foreign key"
+                                    );
+                                }
+                                entry.foreign_key = Some((
+                                    foreign_table.to_string(),
+                                    referred_columns[0].to_string(),
+                                ));
                             }
                             ColumnOption::Check(_) => anyhow::bail!("CHECK not yet supported"),
                             ColumnOption::OnUpdate(_) => {
@@ -215,6 +235,55 @@ impl TryFrom<&Statement> for Command {
                         }
                     }
                 }
+
+                for constraint in constraints {
+                    match constraint {
+                        TableConstraint::ForeignKey {
+                            name,
+                            columns,
+                            foreign_table,
+                            referred_columns,
+                            ..
+                        } => {
+                            if columns.len() != 1 {
+                                anyhow::bail!(
+                                    "Exactly one column must be specified for a foreign key"
+                                );
+                            }
+                            let name = columns[0].to_string();
+                            if let Some(column_def) = descriptor.get_mut(&name) {
+                                if referred_columns.len() != 1 {
+                                    anyhow::bail!(
+                                        "Exactly one column must be specified for a foreign key"
+                                    );
+                                }
+                                column_def.foreign_key = Some((
+                                    foreign_table.to_string(),
+                                    referred_columns[0].to_string(),
+                                ));
+                            } else {
+                                anyhow::bail!("Specified foreign key column does not exist");
+                            }
+                        }
+                        TableConstraint::Check { .. } => {
+                            anyhow::bail!("Check constraints not supported")
+                        }
+                        TableConstraint::PrimaryKey { columns, .. } => {
+                            for col in columns {
+                                if let Some(entry) = descriptor.get_mut(&col.to_string()) {
+                                    entry.primary_key = true;
+                                } else {
+                                    anyhow::bail!(
+                                        "Primary key constraint applied to not existing column: {}",
+                                        col
+                                    );
+                                }
+                            }
+                        }
+                        e => anyhow::bail!("MySQL constraint: {} is not supported", e),
+                    }
+                }
+
                 Ok(Command::CreateTable(CreateTableOptions {
                     name: name.to_string(),
                     columns: descriptor,

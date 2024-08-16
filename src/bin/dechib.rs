@@ -9,6 +9,8 @@ fn main() -> anyhow::Result<()> {
 
     instance.execute("INSERT INTO Persons (LastName, FirstName, Address, City) VALUES ('McKenna', 'Daniel', 'Never you mind', 'London');")?;
 
+    instance.execute("CREATE TABLE House (ID INT AUTO_INCREMENT PRIMARY KEY, address varchar(255) NOT NULL, owner INT, FOREIGN KEY (owner) REFERENCES persons(ID));")?;
+
     instance.execute("SELECT * FROM Persons")?;
 
     Ok(())

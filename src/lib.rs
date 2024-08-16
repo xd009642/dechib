@@ -29,6 +29,7 @@ impl Instance {
         }
     }
 
+    #[instrument(skip_all)]
     pub fn execute(&mut self, query: &str) -> anyhow::Result<()> {
         let statements = self.query.process_sql(query)?;
         for statement in &statements {

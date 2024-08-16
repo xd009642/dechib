@@ -9,25 +9,33 @@ struct StudentDb {
 
 impl StudentDb {
     fn new() -> Self {
-        // TODO we probably want these queries as methods on this type so we can do some
-        // shenanigans like creating one table when a table with a foreign key reference doesn't
-        // exist.
-        let queries = [
-            "create table student (id integer auto_increment, name varchar(20) not null, age integer not null, year integer not null, primary key (id) )",
-            "create table professor (id integer auto_increment, name varchar(20) not null, primary key (id) )",
-            "create table class (id integer auto_increment, title varchar(50) not null, prof_id integer not null, primary key (id), foreign key (prof_id) references professor (id) )",
-            "create table attends(student integer not null, lecture integer not null, grade integer not null, foreign key (student) references student(id), foreign key(lecture) references lecture (id))",
-        ];
-
         let dir_handle = tempdir().unwrap();
 
-        let mut db = Instance::new_with_path(dir_handle.path());
-
-        for query in queries {
-            println!("Executing query: {}", query);
-            db.execute(query).unwrap();
-        }
+        let db = Instance::new_with_path(dir_handle.path());
         Self { db, dir_handle }
+    }
+
+    fn init_default(&mut self) -> anyhow::Result<()> {
+        self.create_student_table()?;
+        self.create_professor_table()?;
+        self.create_class_table()?;
+        self.create_attends_table()
+    }
+
+    fn create_student_table(&mut self) -> anyhow::Result<()> {
+        self.db.execute("create table student (id integer auto_increment, name varchar(20) not null, age integer not null, year integer not null, primary key (id) )")
+    }
+
+    fn create_professor_table(&mut self) -> anyhow::Result<()> {
+        self.db.execute("create table professor (id integer auto_increment, name varchar(20) not null, primary key (id) )")
+    }
+
+    fn create_class_table(&mut self) -> anyhow::Result<()> {
+        self.db.execute("create table class (id integer auto_increment, title varchar(50) not null, prof_id integer not null, primary key (id), foreign key (prof_id) references professor (id) )")
+    }
+
+    fn create_attends_table(&mut self) -> anyhow::Result<()> {
+        self.db.execute("create table attends(student integer not null, lecture integer not null, grade integer not null, foreign key (student) references student(id), foreign key(lecture) references class(id))")
     }
 
     fn add_student(&mut self, name: &str, age: usize, year: usize) -> anyhow::Result<()> {
@@ -65,9 +73,27 @@ impl StudentDb {
 #[traced_test]
 fn student_simple() {
     let mut db = StudentDb::new();
+    db.init_default().unwrap();
     db.add_student("Daniel McKenna", 31, 1).unwrap();
     // Read `Building Query Compilers` it's so useful!
     db.add_professor("Guido Moerkotte").unwrap();
     db.add_class("Building a query compiler", 1).unwrap();
     db.register_attendance(1, 1, 0).unwrap();
+}
+
+#[test]
+#[traced_test]
+fn invalid_foreign_keys() {
+    let mut db = StudentDb::new();
+    assert!(db.create_attends_table().is_err());
+    assert!(db.create_class_table().is_err());
+
+    db.create_professor_table().unwrap();
+    db.create_class_table().unwrap();
+    assert!(db.create_attends_table().is_err());
+    db.create_student_table().unwrap();
+    db.create_attends_table().unwrap();
+
+    let res= db.db.execute("create table attends(student integer not null, lecture integer not null, grade integer not null, foreign key (student) references student(id), foreign key(lecture) references lecture(id))");
+    assert!(res.is_err());
 }
