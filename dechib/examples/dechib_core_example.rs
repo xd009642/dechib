@@ -1,4 +1,4 @@
-use dechib::{setup_logging, Instance};
+use dechib_core::{setup_logging, Instance};
 
 fn main() -> anyhow::Result<()> {
     setup_logging();

@@ -1,8 +1,7 @@
-use crate::Instance;
-use tokio::runtime::Runtime;
+use dechib_core::Instance;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
-
+use tokio::runtime::Runtime;
 
 pub fn launch_server(instance: Instance) -> anyhow::Result<()> {
     let rt = Runtime::new()?;
@@ -16,22 +15,20 @@ pub fn launch_server(instance: Instance) -> anyhow::Result<()> {
                 loop {
                     let mut temp = String::new();
                     socket.read_to_string(&mut temp);
-                    queue.extend(temp);
-                    let commands = queue.split("\n").collect::<Vec<&str>>(); 
+                    queue.extend(vec![temp]);
+                    let commands = queue.split("\n").collect::<Vec<&str>>();
                     if !commands.is_empty() {
                         let len = if queue.ends_with("\n") {
-                            commands.len() 
+                            commands.len()
                         } else {
-                            commands.len() - 1; 
-                        }
+                            commands.len() - 1
+                        };
                         for command in commands.iter().take(len) {
                             //instance.execute(command);
                         }
                         // instance.execute(
-                    
                     }
                 }
-                
             });
         }
     })
