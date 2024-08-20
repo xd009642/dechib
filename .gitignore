@@ -3,3 +3,4 @@
 *.swo
 /_dechib_db
 .idea
+**/**/target
