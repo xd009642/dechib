@@ -15,7 +15,7 @@ pub fn launch_server(instance: Instance) -> anyhow::Result<()> {
                 loop {
                     let mut temp = String::new();
                     socket.read_to_string(&mut temp);
-                    queue.extend(temp.into());
+                    queue.extend(vec![temp]);
                     let commands = queue.split("\n").collect::<Vec<&str>>(); 
                     if !commands.is_empty() {
                         let len = if queue.ends_with("\n") {
