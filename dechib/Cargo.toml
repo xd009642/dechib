@@ -1,0 +1,13 @@
+[package]
+name = "dechib"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = "1.0.86"
+dechib_core = {path = "../dechib_core"}
+dechib_api = {path = "../dechib_api"}
+dechib_auth = {path = "../dechib_auth"}

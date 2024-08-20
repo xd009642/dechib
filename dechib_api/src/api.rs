@@ -1,8 +1,7 @@
-use crate::Instance;
 use tokio::runtime::Runtime;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
-
+use dechib_core::Instance;
 
 pub fn launch_server(instance: Instance) -> anyhow::Result<()> {
     let rt = Runtime::new()?;
