@@ -15,14 +15,14 @@ pub fn launch_server(instance: Instance) -> anyhow::Result<()> {
                 loop {
                     let mut temp = String::new();
                     socket.read_to_string(&mut temp);
-                    queue.extend(temp);
+                    queue.extend(temp.into());
                     let commands = queue.split("\n").collect::<Vec<&str>>(); 
                     if !commands.is_empty() {
                         let len = if queue.ends_with("\n") {
                             commands.len() 
                         } else {
-                            commands.len() - 1; 
-                        }
+                            commands.len() - 1
+                        };
                         for command in commands.iter().take(len) {
                             //instance.execute(command);
                         }
