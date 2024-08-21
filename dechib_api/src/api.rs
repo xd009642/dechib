@@ -1,4 +1,5 @@
 use crate::types::DechibMessage;
+use anyhow::Error;
 use dechib_core::Instance;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -25,12 +26,21 @@ pub fn launch_server(_instance: Instance) -> anyhow::Result<()> {
                         }
                     };
 
-                    let message =
-                        DechibMessage::try_from(&buf[..n]).unwrap_or_else(|err| panic!("{}", err));
-
-                    if let Err(error) = socket.write_all(&message.message_content[..]).await {
-                        eprintln!("failed to write to socket: {:?}", error);
-                        break;
+                    match DechibMessage::try_from(&buf[..n]) {
+                        Ok(message) => {
+                            // TODO: need to implement message execution or auth logic
+                            if let Err(error) = socket.write_all(&message.message_content[..]).await
+                            {
+                                eprintln!("Failed to write to socket; err = {:?}", error);
+                                break;
+                            }
+                        }
+                        Err(error) => {
+                            eprintln!(
+                                "Failed to parse incoming data from client; err = {:?}",
+                                error
+                            )
+                        }
                     }
                 }
             });
