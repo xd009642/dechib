@@ -14,5 +14,6 @@ crate-type = ["lib"]
 [dependencies]
 tokio = {  version = "1.39.3", features = ["full"] }
 anyhow = "1.0.86"
+crc = "3.2.1"
 dechib_core = {path = "../dechib_core"}
 dechib_auth = {path = "../dechib_auth"}
