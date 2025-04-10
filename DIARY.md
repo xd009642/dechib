@@ -14,6 +14,8 @@ track of things. So here starts the diary.
 * Reading the [Datafusion paper](http://andrew.nerdnetworks.org/other/SIGMOD-2024-lamb.pdf) good top level overview
 * Reading [Query Planning and Optimisation](https://15445.courses.cs.cmu.edu/spring2024/notes/15-optimization1.pdf) more detailed
 lecture notes
+* Thoughts: just store parsed sql for select, then require storage engine to make logical plan to check it makes sense? Or make logical plan
+and then validate against storage engine? Maybe it's worth having a schema I can grab for each table, and just making it available for parsing?
 
 
 ## 2025-01-25
