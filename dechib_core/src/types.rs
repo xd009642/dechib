@@ -13,6 +13,11 @@ use tracing::{debug, error, warn};
 pub type ColumnDescriptors = BTreeMap<String, ColumnDescriptor>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Record {
+    pub columns: BTreeMap<String, Rc<Value>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Value {
     Text(String),
     Boolean(bool),
@@ -49,11 +54,6 @@ impl TryFrom<ast::Value> for Value {
         };
         Ok(v)
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Record {
-    pub columns: BTreeMap<String, Rc<Value>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

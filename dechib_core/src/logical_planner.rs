@@ -17,6 +17,7 @@
 //! 2. Re-write by de-correlating or flattening nested subqueries
 //! 3. Decompose nested query and result into a temporary table
 //! 4. Merging predicates
+use crate::parser_utils::*;
 use serde::{Deserialize, Serialize};
 use sqlparser::ast::{Expr, Query, Select, SelectItem, SetExpr, TableFactor};
 
@@ -40,6 +41,8 @@ pub enum LogicalPlan {
     Join(Join),
     /// Remove duplicate elements
     DuplicateElimination(DuplicateElimination),
+    /// Limit the number of outputs produced
+    Limit(Limit),
     /// Aggregate values
     Aggregation(Aggregation),
     /// Sort rows based on a comparison expression and direction
@@ -52,12 +55,42 @@ impl TryFrom<&Query> for LogicalPlan {
     type Error = anyhow::Error;
 
     fn try_from(value: &Query) -> Result<Self, Self::Error> {
-        let plan = match value.body.as_ref() {
+        let mut plan = match value.body.as_ref() {
             SetExpr::Select(select) => select_to_logical_plan(select)?,
             _ => anyhow::bail!("Unsupported body: {:?}", value.body),
         };
 
         // TODO Need to apply more things
+
+        match (value.limit.as_ref(), value.offset.as_ref()) {
+            (Some(limit), Some(offset)) => {
+                let take = extract_usize(limit);
+                let skip = extract_usize(&offset.value);
+                plan = LogicalPlan::Limit(Limit {
+                    skip,
+                    take,
+                    input: Box::new(plan),
+                });
+            }
+            (Some(limit), None) => {
+                let take = extract_usize(limit);
+
+                plan = LogicalPlan::Limit(Limit {
+                    skip: None,
+                    take,
+                    input: Box::new(plan),
+                });
+            }
+            (None, Some(offset)) => {
+                let skip = extract_usize(&offset.value);
+                plan = LogicalPlan::Limit(Limit {
+                    skip,
+                    take: None,
+                    input: Box::new(plan),
+                });
+            }
+            _ => {}
+        }
 
         Ok(plan)
     }
@@ -192,16 +225,29 @@ pub struct Aggregation {
     aggr_expr: (),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SortDirection {
+    Ascending,
+    Descending,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Sorting {
     data: Box<LogicalPlan>,
     /// How am I storing predicates?
-    cmp: (), // a Cmp expression
-    direction: (), // ascending descending
+    columns: Vec<String>,
+    direction: SortDirection,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Rename {
     data: Box<LogicalPlan>,
     renaming: Vec<(String, String)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Limit {
+    skip: Option<usize>,
+    take: Option<usize>,
+    input: Box<LogicalPlan>,
 }
