@@ -124,14 +124,25 @@ fn select_to_logical_plan(select: &Select) -> anyhow::Result<LogicalPlan> {
     for proj in &select.projection {
         match proj {
             SelectItem::UnnamedExpr(expr) => {
-                if tables.len() == 1 {
-                    if let Expr::Identifier(i) = expr {
-                        projections[0].columns.push(i.to_string());
+                if let Expr::Identifier(i) = expr {
+                    let name = i.to_string();
+                    if tables.len() == 1 {
+                        // Maybe we still need to support stripping the table name here
+                        projections[0].columns.push(name);
                     } else {
-                        anyhow::bail!("Can only retrieve identifiers from tables currently");
+                        for proj in projections.iter_mut() {
+                            if let LogicalPlan::TableScan(scan) = proj.data.as_ref() {
+                                if name.starts_with(&scan.table_name) {
+                                    let col_name =
+                                        name.strip_prefix(&scan.table_name).unwrap().to_string();
+                                    proj.columns.push(col_name);
+                                    break;
+                                }
+                            }
+                        }
                     }
                 } else {
-                    // I expect I now need to split the table name off
+                    anyhow::bail!("Can only retrieve identifiers from tables currently");
                 }
             }
             SelectItem::ExprWithAlias { expr, alias } => {}
