@@ -18,8 +18,7 @@
 //! 3. Decompose nested query and result into a temporary table
 //! 4. Merging predicates
 use serde::{Deserialize, Serialize};
-use sqlparser::ast::{Query, Select, SetExpr};
-use std::rc::Rc;
+use sqlparser::ast::{Expr, Query, Select, SelectItem, SetExpr, TableFactor};
 
 /// Logical plan operation
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -58,12 +57,82 @@ impl TryFrom<&Query> for LogicalPlan {
             _ => anyhow::bail!("Unsupported body: {:?}", value.body),
         };
 
-        todo!("Need to apply more things");
+        // TODO Need to apply more things
+
+        Ok(plan)
     }
 }
 
 fn select_to_logical_plan(select: &Select) -> anyhow::Result<LogicalPlan> {
-    todo!()
+    let mut tables = Vec::with_capacity(select.from.len());
+    for table in &select.from {
+        match &table.relation {
+            TableFactor::Table { name, .. } => {
+                tables.push(Box::new(LogicalPlan::TableScan(TableScan {
+                    table_name: name.to_string(),
+                })));
+            }
+            _ => anyhow::bail!("Unsupported relation: {:?}", table.relation),
+        }
+        if !table.joins.is_empty() {
+            anyhow::bail!("Joins currently unsupported");
+        }
+    }
+
+    let mut projections = tables
+        .iter()
+        .map(|x| Projection {
+            data: x.clone(),
+            columns: vec![],
+            select_all: false,
+        })
+        .collect::<Vec<_>>();
+
+    for proj in &select.projection {
+        match proj {
+            SelectItem::UnnamedExpr(expr) => {
+                if tables.len() == 1 {
+                    if let Expr::Identifier(i) = expr {
+                        projections[0].columns.push(i.to_string());
+                    } else {
+                        anyhow::bail!("Can only retrieve identifiers from tables currently");
+                    }
+                } else {
+                    // I expect I now need to split the table name off
+                }
+            }
+            SelectItem::ExprWithAlias { expr, alias } => {}
+            SelectItem::Wildcard(_opt) => {
+                for proj in projections.iter_mut() {
+                    proj.select_all = true;
+                }
+            }
+            SelectItem::QualifiedWildcard(_, _) => {
+                anyhow::bail!("Qualified wildcards are not supported")
+            }
+        }
+    }
+
+    // Just do a union for now and ignore the predicates
+    if projections.is_empty() {
+        anyhow::bail!("Projections should not be empty");
+    } else if projections.len() == 1 {
+        Ok(LogicalPlan::Projection(projections.remove(0)))
+    } else {
+        let mut union = LogicalPlan::Union(Union {
+            left: Box::new(LogicalPlan::Projection(projections.remove(0))),
+            right: Box::new(LogicalPlan::Projection(projections.remove(0))),
+        });
+
+        for proj in projections.drain(..) {
+            let temp_union = LogicalPlan::Union(Union {
+                left: Box::new(LogicalPlan::Projection(proj)),
+                right: Box::new(union),
+            });
+            union = temp_union;
+        }
+        Ok(union)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -73,39 +142,40 @@ pub struct TableScan {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Union {
-    left: Rc<LogicalPlan>,
-    right: Rc<LogicalPlan>,
+    left: Box<LogicalPlan>,
+    right: Box<LogicalPlan>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Intersection {
-    left: Rc<LogicalPlan>,
-    right: Rc<LogicalPlan>,
+    left: Box<LogicalPlan>,
+    right: Box<LogicalPlan>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Difference {
-    left: Rc<LogicalPlan>,
-    right: Rc<LogicalPlan>,
+    left: Box<LogicalPlan>,
+    right: Box<LogicalPlan>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Selection {
-    data: Rc<LogicalPlan>,
+    data: Box<LogicalPlan>,
     /// How am I storing predicates?
     predicate: (),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Projection {
-    data: Rc<LogicalPlan>,
+    data: Box<LogicalPlan>,
     columns: Vec<String>,
+    select_all: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Join {
-    left: Rc<LogicalPlan>,
-    right: Rc<LogicalPlan>,
+    left: Box<LogicalPlan>,
+    right: Box<LogicalPlan>,
     // Left table right table expression
     on: Vec<((), ())>,
     join_type: (), // inner outer
@@ -113,18 +183,18 @@ pub struct Join {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DuplicateElimination {
-    data: Rc<LogicalPlan>,
+    data: Box<LogicalPlan>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Aggregation {
-    data: Rc<LogicalPlan>,
+    data: Box<LogicalPlan>,
     aggr_expr: (),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Sorting {
-    data: Rc<LogicalPlan>,
+    data: Box<LogicalPlan>,
     /// How am I storing predicates?
     cmp: (), // a Cmp expression
     direction: (), // ascending descending
@@ -132,6 +202,6 @@ pub struct Sorting {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Rename {
-    data: Rc<LogicalPlan>,
+    data: Box<LogicalPlan>,
     renaming: Vec<(String, String)>,
 }

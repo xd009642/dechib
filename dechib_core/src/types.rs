@@ -300,8 +300,8 @@ impl TryFrom<&Statement> for Command {
 }
 
 fn process_query(query: &Query) -> anyhow::Result<Command> {
-    println!("{:?}", query);
     let logical_plan = LogicalPlan::try_from(query)?;
+    debug!("Logical plan: {:?}", logical_plan);
     Ok(Command::Select(QueryOptions { logical_plan }))
 }
 
