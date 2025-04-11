@@ -1,3 +1,4 @@
+use crate::logical_planner::LogicalPlan;
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
@@ -147,7 +148,7 @@ pub struct InsertOptions {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryOptions {
-    //TODO maybe I just want to keep the query type
+    logical_plan: LogicalPlan,
 }
 
 impl InsertOptions {
@@ -299,7 +300,9 @@ impl TryFrom<&Statement> for Command {
 }
 
 fn process_query(query: &Query) -> anyhow::Result<Command> {
-    todo!()
+    println!("{:?}", query);
+    let logical_plan = LogicalPlan::try_from(query)?;
+    Ok(Command::Select(QueryOptions { logical_plan }))
 }
 
 fn process_insert(insert: &Insert) -> anyhow::Result<Command> {
