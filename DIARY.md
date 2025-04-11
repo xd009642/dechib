@@ -5,9 +5,14 @@ track of things. So here starts the diary.
 
 ## TODO
 
+* Logical plan implementation for filtering, sorting and think about joins...
 * Look at [datafusion](https://docs.rs/datafusion/latest/datafusion/) because I'm lost on mapping from sql to relational algebra stuff
 * Also read [Translation SQL into Relational Algebra](https://cs.ulb.ac.be/public/_media/teaching/infoh417/sql2alg_eng.pdf)
 * [Introduction to Database Systems CSE444](https://courses.cs.washington.edu/courses/cse444/09sp/lectures/lecture18.pdf) lists logical operators
+
+## 2025-04-11
+
+* Implemented logical plan generation for limit, selecting from tables and columns.
 
 ## 2025-04-10
 
