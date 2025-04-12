@@ -234,7 +234,10 @@ dependencies = [
  "dechib_api",
  "dechib_auth",
  "dechib_core",
+ "tempfile",
  "tracing",
+ "tracing-test",
+ "uuid",
 ]
 
 [[package]]

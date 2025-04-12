@@ -91,7 +91,8 @@ impl ColumnDescriptor {
                 | DataType::Char(_)
                 | DataType::CharacterVarying(_)
                 | DataType::Varchar(_)
-                | DataType::Nvarchar(_),
+                | DataType::Nvarchar(_)
+                | DataType::Date,
             ) => true,
             (Value::Boolean(_), DataType::Bool | DataType::Boolean) => true,
             (

@@ -11,6 +11,7 @@ track of things. So here starts the diary.
 * [Introduction to Database Systems CSE444](https://courses.cs.washington.edu/courses/cse444/09sp/lectures/lecture18.pdf) lists logical operators
 * [CMU15-799 Query Optimization](https://15799.courses.cs.cmu.edu/spring2025/schedule.html)
 * [Query Engines Push vs Pull](https://justinjaffray.com/query-engines-push-vs.-pull/)
+* Proper DATE type
 
 ## 2025-04-12
 
