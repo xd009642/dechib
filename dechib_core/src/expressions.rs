@@ -5,11 +5,13 @@ use sqlparser::ast::{self, Expr};
 /// less stuff in it
 pub enum Expression {
     Literal(Value),
+    Identifier(String),
     BinaryOp {
         left: Box<Expression>,
         op: BinaryOperator,
         right: Box<Expression>,
     },
+    InList,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -70,6 +72,8 @@ impl TryFrom<&Expr> for Expression {
 
     fn try_from(expr: &Expr) -> Result<Self, Self::Error> {
         match expr {
+            Expr::Identifier(ident) => Ok(Expression::Identifier(ident.to_string())),
+            Expr::Value(value) => Ok(Expression::Literal(Value::try_from(value.value.clone())?)),
             Expr::BinaryOp { left, op, right } => {
                 let left = Box::new(Expression::try_from(left.as_ref())?);
                 let right = Box::new(Expression::try_from(right.as_ref())?);

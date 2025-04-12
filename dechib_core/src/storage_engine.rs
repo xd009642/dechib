@@ -171,7 +171,7 @@ impl StorageEngine {
                 if let Some(Expr::Value(val)) = &desc.default {
                     value_actions.insert(
                         column,
-                        Action::ApplyConstant(Rc::new(Value::try_from(val.clone())?)),
+                        Action::ApplyConstant(Rc::new(Value::try_from(val.value.clone())?)),
                     );
                 } else if desc.default.is_some() {
                     anyhow::bail!("Unsupported default expression: {:?}", desc.default);
@@ -257,7 +257,7 @@ mod tests {
         columns.insert(
             "id".to_string(),
             ColumnDescriptor {
-                datatype: DataType::UnsignedInteger(None),
+                datatype: DataType::UnsignedInteger,
                 not_null: true,
                 unique: true,
                 primary_key: true,
@@ -274,7 +274,8 @@ mod tests {
             },
         );
 
-        let expr = Expr::Value(ast::Value::SingleQuotedString("London".to_string()));
+        let expr =
+            Expr::Value(ast::Value::SingleQuotedString("London".to_string()).with_empty_span());
 
         columns.insert(
             "city".to_string(),

@@ -109,7 +109,7 @@ mod tests {
         columns.insert(
             "id".to_string(),
             ColumnDescriptor {
-                datatype: DataType::UnsignedInteger(None),
+                datatype: DataType::IntegerUnsigned(None),
                 not_null: true,
                 unique: true,
                 primary_key: true,

@@ -36,7 +36,10 @@ impl TryFrom<ast::Value> for Value {
             ast::Value::SingleQuotedString(s)
             | ast::Value::EscapedStringLiteral(s)
             | ast::Value::DoubleQuotedString(s)
-            | ast::Value::RawStringLiteral(s)
+            | ast::Value::SingleQuotedRawStringLiteral(s)
+            | ast::Value::DoubleQuotedRawStringLiteral(s)
+            | ast::Value::TripleSingleQuotedRawStringLiteral(s)
+            | ast::Value::TripleDoubleQuotedRawStringLiteral(s)
             | ast::Value::NationalStringLiteral(s) => Value::Text(s),
             ast::Value::Boolean(b) => Value::Boolean(b),
             ast::Value::Null => Value::Null,
@@ -98,11 +101,12 @@ impl ColumnDescriptor {
                 | DataType::Dec(_)
                 | DataType::Float(_)
                 | DataType::Int(_)
-                | DataType::UnsignedInt(_)
+                | DataType::Unsigned
                 | DataType::Integer(_)
-                | DataType::UnsignedInteger(_)
+                | DataType::UnsignedInteger
                 | DataType::Real
-                | DataType::Double,
+                | DataType::Double(_)
+                | DataType::DoublePrecision,
             ) => true,
             (Value::Bytes(_), DataType::Bytea | DataType::Blob(_) | DataType::Bytes(_)) => true,
             (Value::Null, _) if !self.not_null => true,
@@ -183,12 +187,10 @@ impl TryFrom<&Statement> for Command {
     fn try_from(statement: &Statement) -> Result<Self, Self::Error> {
         debug!("Processing statement {:?}", statement);
         match statement {
-            Statement::CreateTable {
-                name,
-                columns,
-                constraints,
-                ..
-            } => {
+            Statement::CreateTable(opts) => {
+                let name = &opts.name;
+                let columns = &opts.columns;
+                let constraints = &opts.constraints;
                 let mut descriptor = BTreeMap::new();
                 for col in columns {
                     let entry = descriptor.entry(col.name.to_string()).or_insert_with(|| {
@@ -242,6 +244,7 @@ impl TryFrom<&Statement> for Command {
                             | ColumnOption::CharacterSet(_)
                             | ColumnOption::Comment(_)
                             | ColumnOption::Options(_) => {}
+                            _ => {}
                         }
                     }
                 }
@@ -343,7 +346,7 @@ fn process_insert(insert: &Insert) -> anyhow::Result<Command> {
                     for val in row {
                         match val {
                             Expr::Value(v) => {
-                                my_row.push(Value::try_from(v.clone())?.into());
+                                my_row.push(Value::try_from(v.value.clone())?.into());
                             }
                             e => anyhow::bail!("Unhandled expression type: {}", e),
                         }
@@ -356,7 +359,7 @@ fn process_insert(insert: &Insert) -> anyhow::Result<Command> {
     }
 
     Ok(Command::Insert(InsertOptions {
-        table: insert.table_name.to_string(),
+        table: insert.table.to_string(),
         columns,
         values,
     }))
