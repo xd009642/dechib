@@ -5,6 +5,7 @@ use std::{env, path::Path};
 use tracing::{debug, instrument};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
+pub mod expressions;
 pub mod logical_planner;
 pub mod parser_utils;
 pub mod query_engine;
