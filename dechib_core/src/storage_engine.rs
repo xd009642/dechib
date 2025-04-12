@@ -325,7 +325,7 @@ mod tests {
 
         let opts = DropTableOptions {
             tables: vec!["users".to_string()],
-            if_exists: false
+            if_exists: false,
         };
 
         engine.delete_tables(&opts).unwrap();
@@ -334,14 +334,14 @@ mod tests {
 
         let opts = DropTableOptions {
             tables: vec!["users".to_string()],
-            if_exists: true
+            if_exists: true,
         };
 
         engine.delete_tables(&opts).unwrap();
 
         let opts = DropTableOptions {
             tables: vec!["users".to_string()],
-            if_exists: false
+            if_exists: false,
         };
 
         assert!(engine.delete_tables(&opts).is_err());

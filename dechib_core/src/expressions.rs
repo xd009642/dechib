@@ -39,7 +39,29 @@ impl TryFrom<&ast::BinaryOperator> for BinaryOperator {
     type Error = anyhow::Error;
 
     fn try_from(op: &ast::BinaryOperator) -> Result<Self, Self::Error> {
-        todo!()
+        let res = match op {
+            ast::BinaryOperator::Plus => Self::Plus,
+            ast::BinaryOperator::Minus => Self::Minus,
+            ast::BinaryOperator::Multiply => Self::Multiply,
+            ast::BinaryOperator::Divide => Self::Divide,
+            ast::BinaryOperator::Modulo => Self::Modulo,
+            ast::BinaryOperator::StringConcat => Self::StringConcat,
+            ast::BinaryOperator::Gt => Self::Gt,
+            ast::BinaryOperator::Lt => Self::Lt,
+            ast::BinaryOperator::GtEq => Self::GtEq,
+            ast::BinaryOperator::LtEq => Self::LtEq,
+            ast::BinaryOperator::Spaceship => Self::Spaceship,
+            ast::BinaryOperator::Eq => Self::Eq,
+            ast::BinaryOperator::NotEq => Self::NotEq,
+            ast::BinaryOperator::And => Self::And,
+            ast::BinaryOperator::Or => Self::Or,
+            ast::BinaryOperator::Xor => Self::Xor,
+            ast::BinaryOperator::BitwiseOr => Self::BitwiseOr,
+            ast::BinaryOperator::BitwiseAnd => Self::BitwiseAnd,
+            ast::BinaryOperator::BitwiseXor => Self::BitwiseXor,
+            other => anyhow::bail!("Unsupported operator: {}", other),
+        };
+        Ok(res)
     }
 }
 
