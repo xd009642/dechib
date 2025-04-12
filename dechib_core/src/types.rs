@@ -1,3 +1,4 @@
+use crate::logical_planner::LogicalPlan;
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
@@ -12,11 +13,17 @@ use tracing::{debug, error, warn};
 pub type ColumnDescriptors = BTreeMap<String, ColumnDescriptor>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Record {
+    pub columns: BTreeMap<String, Rc<Value>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Value {
     Text(String),
     Boolean(bool),
     Number(BigDecimal),
     Bytes(Vec<u8>),
+    List(Vec<Value>),
     Null,
 }
 
@@ -48,11 +55,6 @@ impl TryFrom<ast::Value> for Value {
         };
         Ok(v)
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Record {
-    pub columns: BTreeMap<String, Rc<Value>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -147,7 +149,7 @@ pub struct InsertOptions {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryOptions {
-    //TODO maybe I just want to keep the query type
+    logical_plan: LogicalPlan,
 }
 
 impl InsertOptions {
@@ -299,7 +301,9 @@ impl TryFrom<&Statement> for Command {
 }
 
 fn process_query(query: &Query) -> anyhow::Result<Command> {
-    todo!()
+    let logical_plan = LogicalPlan::try_from(query)?;
+    debug!("Logical plan: {:?}", logical_plan);
+    Ok(Command::Select(QueryOptions { logical_plan }))
 }
 
 fn process_insert(insert: &Insert) -> anyhow::Result<Command> {
