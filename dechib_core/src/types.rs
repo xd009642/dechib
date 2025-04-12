@@ -23,6 +23,7 @@ pub enum Value {
     Boolean(bool),
     Number(BigDecimal),
     Bytes(Vec<u8>),
+    List(Vec<Value>),
     Null,
 }
 
