@@ -44,6 +44,9 @@ impl Instance {
                 Command::Insert(opts) => {
                     self.storage.insert_rows(opts)?;
                 }
+                Command::DropTables(opts) => {
+                    self.storage.delete_tables(opts)?;
+                }
                 Command::Select(_) => {
                     anyhow::bail!("Currently don't support SELECT queries");
                 }

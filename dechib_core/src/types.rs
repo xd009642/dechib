@@ -3,7 +3,8 @@ use anyhow::Context;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlparser::ast::{
-    self, ColumnOption, DataType, Expr, Insert, Query, SetExpr, Statement, TableConstraint,
+    self, ColumnOption, DataType, Expr, Insert, ObjectType, Query, SetExpr, Statement,
+    TableConstraint,
 };
 use std::collections::{BTreeMap, HashSet};
 use std::convert::TryFrom;
@@ -132,6 +133,7 @@ pub enum Command {
     CreateTable(CreateTableOptions),
     Insert(InsertOptions),
     Select(QueryOptions),
+    DropTables(DropTableOptions),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -149,7 +151,13 @@ pub struct InsertOptions {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryOptions {
-    logical_plan: LogicalPlan,
+    pub logical_plan: LogicalPlan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DropTableOptions {
+    pub tables: Vec<String>,
+    pub if_exists: bool,
 }
 
 impl InsertOptions {
@@ -293,6 +301,18 @@ impl TryFrom<&Statement> for Command {
             }
             Statement::Insert(insert) => process_insert(insert),
             Statement::Query(query) => process_query(query),
+            Statement::Drop {
+                object_type: ObjectType::Table,
+                if_exists,
+                names,
+                ..
+            } => {
+                let opts = DropTableOptions {
+                    tables: names.iter().map(|x| x.to_string()).collect(),
+                    if_exists: *if_exists,
+                };
+                Ok(Command::DropTables(opts))
+            }
             e => {
                 anyhow::bail!("Unsupported Statement: {}", e);
             }

@@ -121,6 +121,18 @@ impl StorageEngine {
         Ok(())
     }
 
+    pub fn delete_tables(&mut self, drop_table: &DropTableOptions) -> anyhow::Result<()> {
+        for name in &drop_table.tables {
+            let res = self.db.drop_cf(name.as_ref());
+            if !drop_table.if_exists {
+                res?;
+            } else if let Err(error) = res {
+                debug!(error=%error, "Ignoring drop error for {} due to `IF EXISTS`", name);
+            }
+        }
+        Ok(())
+    }
+
     pub fn table_metadata(&self, name: impl AsRef<str>) -> anyhow::Result<ColumnDescriptors> {
         let handle = self
             .db
@@ -303,6 +315,42 @@ mod tests {
 
     #[test]
     #[traced_test]
+    fn drop_table() {
+        let handle = TableHandle::new();
+        let mut engine = StorageEngine::new_with_path(&handle.path);
+
+        let opt = default_fixture();
+
+        engine.create_table(&opt).unwrap();
+
+        let opts = DropTableOptions {
+            tables: vec!["users".to_string()],
+            if_exists: false
+        };
+
+        engine.delete_tables(&opts).unwrap();
+
+        assert!(engine.table_metadata("users").is_err());
+
+        let opts = DropTableOptions {
+            tables: vec!["users".to_string()],
+            if_exists: true
+        };
+
+        engine.delete_tables(&opts).unwrap();
+
+        let opts = DropTableOptions {
+            tables: vec!["users".to_string()],
+            if_exists: false
+        };
+
+        assert!(engine.delete_tables(&opts).is_err());
+
+        std::mem::drop(engine);
+    }
+
+    #[test]
+    #[traced_test]
     fn error_if_table_already_exists() {
         let handle = TableHandle::new();
         let mut engine = StorageEngine::new_with_path(&handle.path);
@@ -320,7 +368,7 @@ mod tests {
         let mut engine = StorageEngine::new_with_path(&handle.path);
 
         let path = format!("./target/{}", Uuid::new_v4());
-        let mut engine = StorageEngine::new_with_path(&path);
+        let engine = StorageEngine::new_with_path(&path);
 
         assert!(engine.table_metadata("users").is_err());
     }

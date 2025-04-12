@@ -12,6 +12,11 @@ track of things. So here starts the diary.
 * [CMU15-799 Query Optimization](https://15799.courses.cs.cmu.edu/spring2025/schedule.html)
 * [Query Engines Push vs Pull](https://justinjaffray.com/query-engines-push-vs.-pull/)
 
+## 2025-04-12
+
+* Started implementing Expressions as part of the WHERE predicate handling
+* Implemented `DROP TABLE`
+
 ## 2025-04-11
 
 * Implemented logical plan generation for limit, selecting from tables and columns.
