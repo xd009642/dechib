@@ -112,6 +112,13 @@ fn select_to_logical_plan(select: &Select) -> anyhow::Result<LogicalPlan> {
         }
     }
 
+    // Handle joins we should end up with one logical plan after this (I think?)
+
+    // Apply WHERE before projects. (Maybe we want all WHEREs after joins for now but splitting to
+    // ones that don't need the join then doing ones with the join afterwards is probably smarter)
+
+    if let Some(where_expr) = &select.selection {}
+
     let mut projections = tables
         .iter()
         .map(|x| Projection {
@@ -177,6 +184,26 @@ fn select_to_logical_plan(select: &Select) -> anyhow::Result<LogicalPlan> {
         }
         Ok(union)
     }
+}
+
+fn condition_to_plan(expr: &Expr, root_plan: LogicalPlan) -> LogicalPlan {
+    match expr {
+        Expr::BinaryOp { left, op, right } => {
+            unimplemented!()
+        }
+        Expr::IsNotFalse(expr) | Expr::IsTrue(expr) => {}
+        Expr::IsFalse(expr) | Expr::IsNotFalse(expr) => {}
+        Expr::IsNull(expr) => {}
+        Expr::IsNotNull(expr) => {}
+        Expr::InList {
+            expr,
+            list,
+            negated,
+        } => {}
+        Expr::UnaryOp { op, expr } => {}
+        _ => unimplemented!(),
+    }
+    todo!();
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
