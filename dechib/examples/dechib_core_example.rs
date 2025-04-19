@@ -16,7 +16,8 @@ fn main() -> anyhow::Result<()> {
     instance.execute("CREATE TABLE House (ID INT AUTO_INCREMENT PRIMARY KEY, address varchar(255) NOT NULL, owner INT, FOREIGN KEY (owner) REFERENCES Persons(ID));")?;
 
     info!("Read the persons");
-    instance.execute("SELECT * FROM Persons WHERE FirstName='Daniel' AND LastName='McKenna'")?;
+    instance
+        .execute("SELECT Address FROM Persons WHERE FirstName='Daniel' AND LastName='McKenna'")?;
 
     Ok(())
 }

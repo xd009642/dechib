@@ -21,6 +21,7 @@ use crate::expressions::Expression;
 use crate::parser_utils::*;
 use serde::{Deserialize, Serialize};
 use sqlparser::ast::{Expr, Query, Select, SelectItem, SetExpr, TableFactor};
+use tracing::{debug, info, warn};
 
 /// Logical plan operation
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,6 +51,8 @@ pub enum LogicalPlan {
     Sorting(Sorting),
     /// Rename columns
     Rename(Rename),
+    /// Noop TODO do I need this?
+    Noop,
 }
 
 impl TryFrom<&Query> for LogicalPlan {
@@ -112,6 +115,13 @@ fn select_to_logical_plan(select: &Select) -> anyhow::Result<LogicalPlan> {
             anyhow::bail!("Joins currently unsupported");
         }
     }
+    let table_count = tables.len();
+
+    let mut root_node = match tables.len() {
+        0 => anyhow::bail!("expressions with no tables not supported"),
+        1 => tables.remove(0),
+        _ => anyhow::bail!("expression with multiple tables not supported"),
+    };
 
     // Handle joins we should end up with one logical plan after this (I think?)
 
@@ -120,34 +130,36 @@ fn select_to_logical_plan(select: &Select) -> anyhow::Result<LogicalPlan> {
 
     if let Some(where_expr) = &select.selection {
         let expr = Expression::try_from(where_expr)?;
+        root_node = Box::new(LogicalPlan::Selection(Selection {
+            data: root_node,
+            predicate: Box::new(expr),
+        }));
     }
 
-    let mut projections = tables
-        .iter()
-        .map(|x| Projection {
-            data: x.clone(),
-            columns: vec![],
-            select_all: false,
-        })
-        .collect::<Vec<_>>();
+    info!("Plan before we start projections: {:?}", root_node);
+
+    let mut projection = Projection {
+        data: root_node,
+        columns: vec![],
+        select_all: false,
+    };
 
     for proj in &select.projection {
         match proj {
             SelectItem::UnnamedExpr(expr) => {
+                debug!(expr=?expr, "Check select expression");
                 if let Expr::Identifier(i) = expr {
                     let name = i.to_string();
-                    if tables.len() == 1 {
+                    if table_count == 1 {
                         // Maybe we still need to support stripping the table name here
-                        projections[0].columns.push(name);
+                        projection.columns.push(name);
                     } else {
-                        for proj in projections.iter_mut() {
-                            if let LogicalPlan::TableScan(scan) = proj.data.as_ref() {
-                                if name.starts_with(&scan.table_name) {
-                                    let col_name =
-                                        name.strip_prefix(&scan.table_name).unwrap().to_string();
-                                    proj.columns.push(col_name);
-                                    break;
-                                }
+                        if let LogicalPlan::TableScan(scan) = projection.data.as_ref() {
+                            if name.starts_with(&scan.table_name) {
+                                let col_name =
+                                    name.strip_prefix(&scan.table_name).unwrap().to_string();
+                                projection.columns.push(col_name);
+                                break;
                             }
                         }
                     }
@@ -157,9 +169,8 @@ fn select_to_logical_plan(select: &Select) -> anyhow::Result<LogicalPlan> {
             }
             SelectItem::ExprWithAlias { expr, alias } => {}
             SelectItem::Wildcard(_opt) => {
-                for proj in projections.iter_mut() {
-                    proj.select_all = true;
-                }
+                panic!("This won't work we need a schema of some sort");
+                projection.select_all = true;
             }
             SelectItem::QualifiedWildcard(_, _) => {
                 anyhow::bail!("Qualified wildcards are not supported")
@@ -167,25 +178,14 @@ fn select_to_logical_plan(select: &Select) -> anyhow::Result<LogicalPlan> {
         }
     }
 
-    // Just do a union for now and ignore the predicates
-    if projections.is_empty() {
-        anyhow::bail!("Projections should not be empty");
-    } else if projections.len() == 1 {
-        Ok(LogicalPlan::Projection(projections.remove(0)))
-    } else {
-        let mut union = LogicalPlan::Union(Union {
-            left: Box::new(LogicalPlan::Projection(projections.remove(0))),
-            right: Box::new(LogicalPlan::Projection(projections.remove(0))),
-        });
+    info!("End logical plan? {:?}", projection);
 
-        for proj in projections.drain(..) {
-            let temp_union = LogicalPlan::Union(Union {
-                left: Box::new(LogicalPlan::Projection(proj)),
-                right: Box::new(union),
-            });
-            union = temp_union;
-        }
-        Ok(union)
+    // Just do a union for now and ignore the predicates
+    if projection.select_all || !projection.columns.is_empty() {
+        Ok(LogicalPlan::Projection(projection))
+    } else {
+        warn!("Query resulted in nothing to do... Is this right?");
+        Ok(LogicalPlan::Noop)
     }
 }
 
