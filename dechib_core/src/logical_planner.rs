@@ -17,12 +17,13 @@
 //! 2. Re-write by de-correlating or flattening nested subqueries
 //! 3. Decompose nested query and result into a temporary table
 //! 4. Merging predicates
+use crate::expressions::Expression;
 use crate::parser_utils::*;
 use serde::{Deserialize, Serialize};
 use sqlparser::ast::{Expr, Query, Select, SelectItem, SetExpr, TableFactor};
 
 /// Logical plan operation
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LogicalPlan {
     /// A table to scan through, this will be a leaf data source for queries ig
     TableScan(TableScan),
@@ -117,7 +118,9 @@ fn select_to_logical_plan(select: &Select) -> anyhow::Result<LogicalPlan> {
     // Apply WHERE before projects. (Maybe we want all WHEREs after joins for now but splitting to
     // ones that don't need the join then doing ones with the join afterwards is probably smarter)
 
-    if let Some(where_expr) = &select.selection {}
+    if let Some(where_expr) = &select.selection {
+        let expr = Expression::try_from(where_expr)?;
+    }
 
     let mut projections = tables
         .iter()
@@ -206,44 +209,44 @@ fn condition_to_plan(expr: &Expr, root_plan: LogicalPlan) -> LogicalPlan {
     todo!();
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TableScan {
     table_name: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Union {
     left: Box<LogicalPlan>,
     right: Box<LogicalPlan>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Intersection {
     left: Box<LogicalPlan>,
     right: Box<LogicalPlan>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Difference {
     left: Box<LogicalPlan>,
     right: Box<LogicalPlan>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Selection {
     data: Box<LogicalPlan>,
     /// How am I storing predicates?
-    predicate: (),
+    predicate: Box<Expression>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Projection {
     data: Box<LogicalPlan>,
     columns: Vec<String>,
     select_all: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Join {
     left: Box<LogicalPlan>,
     right: Box<LogicalPlan>,
@@ -252,24 +255,24 @@ pub struct Join {
     join_type: (), // inner outer
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DuplicateElimination {
     data: Box<LogicalPlan>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Aggregation {
     data: Box<LogicalPlan>,
     aggr_expr: (),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SortDirection {
     Ascending,
     Descending,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Sorting {
     data: Box<LogicalPlan>,
     /// How am I storing predicates?
@@ -277,13 +280,13 @@ pub struct Sorting {
     direction: SortDirection,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rename {
     data: Box<LogicalPlan>,
     renaming: Vec<(String, String)>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Limit {
     skip: Option<usize>,
     take: Option<usize>,

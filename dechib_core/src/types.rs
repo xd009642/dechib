@@ -141,25 +141,25 @@ pub enum Command {
     DropTables(DropTableOptions),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CreateTableOptions {
     pub name: String,
     pub columns: ColumnDescriptors,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InsertOptions {
     pub table: String,
     pub columns: Vec<String>,
     pub values: Vec<Vec<Rc<Value>>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QueryOptions {
     pub logical_plan: LogicalPlan,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DropTableOptions {
     pub tables: Vec<String>,
     pub if_exists: bool,

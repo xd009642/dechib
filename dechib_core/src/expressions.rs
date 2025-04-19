@@ -3,6 +3,7 @@ use sqlparser::ast::{self, Expr};
 
 /// This type might end up looking a bit like the sqlparser expression type, but it'll have a lot
 /// less stuff in it
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
     Literal(Value),
     Identifier(String),
