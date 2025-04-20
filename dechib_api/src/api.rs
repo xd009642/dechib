@@ -1,5 +1,4 @@
 use crate::types::DechibMessage;
-use anyhow::Error;
 use dechib_core::Instance;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;

@@ -1,4 +1,4 @@
-use dechib_core::{setup_logging, Instance};
+use dechib_core::Instance;
 use tracing_test::traced_test;
 use uuid::Uuid;
 

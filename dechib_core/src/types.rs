@@ -252,7 +252,6 @@ impl Command {
                 for constraint in constraints {
                     match constraint {
                         TableConstraint::ForeignKey {
-                            name,
                             columns,
                             foreign_table,
                             referred_columns,

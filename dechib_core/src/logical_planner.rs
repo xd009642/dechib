@@ -19,7 +19,6 @@
 //! 4. Merging predicates
 use crate::expressions::Expression;
 use crate::parser_utils::*;
-use serde::{Deserialize, Serialize};
 use sqlparser::ast::{Expr, Query, Select, SelectItem, SetExpr, TableFactor};
 use tracing::{debug, info, warn};
 

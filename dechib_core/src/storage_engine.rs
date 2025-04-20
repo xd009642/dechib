@@ -52,7 +52,7 @@ impl StorageEngine {
     pub fn new_with_path(path: impl AsRef<Path>) -> Self {
         let mut opts = Options::default();
         opts.create_if_missing(true);
-        let mut auto_incs = BTreeMap::new();
+        let auto_incs = BTreeMap::new();
         let mut cf_names = vec![];
 
         let db = match DB::list_cf(&opts, path.as_ref()) {
@@ -405,7 +405,7 @@ mod tests {
     #[traced_test]
     fn metadata_error_on_nonexistant_table() {
         let handle = TableHandle::new();
-        let mut engine = StorageEngine::new_with_path(&handle.path);
+        let engine = StorageEngine::new_with_path(&handle.path);
 
         let path = format!("./target/{}", Uuid::new_v4());
         let engine = StorageEngine::new_with_path(&path);

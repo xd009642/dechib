@@ -1,9 +1,6 @@
 use crate::types::Value;
-use anyhow::Context;
-use bigdecimal::{BigDecimal, ToPrimitive};
-use serde::{Deserialize, Serialize};
-use sqlparser::ast::{self, Expr};
-use std::rc::Rc;
+use bigdecimal::ToPrimitive;
+use sqlparser::ast::Expr;
 
 /// If a expression is a constant numbe extract it as a usize otherwise None.
 pub fn extract_usize(expr: &Expr) -> Option<usize> {
