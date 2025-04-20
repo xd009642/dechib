@@ -6,6 +6,7 @@ track of things. So here starts the diary.
 ## TODO
 
 * Insert schema stuff into the LogicalPlan creation so that `*` works etc.
+* Autoincrement will stop working if you close and reopen the database
 * Logical plan implementation for filtering, sorting and think about joins...
 * Proper DATE type
 
@@ -17,6 +18,10 @@ track of things. So here starts the diary.
 * [CMU15-799 Query Optimization](https://15799.courses.cs.cmu.edu/spring2025/schedule.html)
 * [Query Engines Push vs Pull](https://justinjaffray.com/query-engines-push-vs.-pull/)
 * [How Query Engines Work](https://howqueryengineswork.com/00-acknowledgments.html) - holy hell!
+
+## 2025-04-20
+
+* Preserve the column ordering from INSERT statements
 
 ## 2025-04-19
 

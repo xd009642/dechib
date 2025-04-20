@@ -1,6 +1,7 @@
 use crate::logical_planner::LogicalPlan;
 use anyhow::Context;
 use bigdecimal::BigDecimal;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use sqlparser::ast::{
     self, ColumnOption, DataType, Expr, Insert, ObjectType, Query, SetExpr, Statement,
@@ -11,7 +12,7 @@ use std::convert::TryFrom;
 use std::rc::Rc;
 use tracing::{debug, error, warn};
 
-pub type ColumnDescriptors = BTreeMap<String, ColumnDescriptor>;
+pub type ColumnDescriptors = IndexMap<String, ColumnDescriptor>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Record {
@@ -192,7 +193,7 @@ impl TryFrom<&Statement> for Command {
                 let name = &opts.name;
                 let columns = &opts.columns;
                 let constraints = &opts.constraints;
-                let mut descriptor = BTreeMap::new();
+                let mut descriptor = IndexMap::new();
                 for col in columns {
                     let entry = descriptor.entry(col.name.to_string()).or_insert_with(|| {
                         ColumnDescriptor {

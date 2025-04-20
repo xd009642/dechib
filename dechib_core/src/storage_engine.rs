@@ -1,3 +1,4 @@
+use crate::schema::*;
 use crate::types::*;
 use anyhow::Context;
 use bigdecimal::{BigDecimal, FromPrimitive};
@@ -15,6 +16,7 @@ const TABLE_METADATA_KEY: &'static str = "__metadata__";
 pub struct StorageEngine {
     db: DB,
     auto_incs: BTreeMap<Entry, AtomicUsize>,
+    cf_names: Vec<String>,
 }
 
 pub enum Action<'a> {
@@ -50,13 +52,21 @@ impl StorageEngine {
     pub fn new_with_path(path: impl AsRef<Path>) -> Self {
         let mut opts = Options::default();
         opts.create_if_missing(true);
+        let mut auto_incs = BTreeMap::new();
+        let mut cf_names = vec![];
+
         let db = match DB::list_cf(&opts, path.as_ref()) {
-            Ok(cf) => DB::open_cf(&opts, path, &cf).expect("Failed to load storage"),
+            Ok(cfs) => {
+                cf_names = cfs.clone();
+                // TODO Need to repopulate auto incs
+                DB::open_cf(&opts, path, &cfs).expect("Failed to load storage")
+            }
             Err(_) => DB::open(&opts, path).expect("Failed to create storage"),
         };
         Self {
             db,
-            auto_incs: BTreeMap::new(),
+            auto_incs,
+            cf_names,
         }
     }
 
@@ -118,6 +128,8 @@ impl StorageEngine {
             self.auto_incs.insert(entry, initial);
         }
 
+        self.cf_names.push(name.to_string());
+
         Ok(())
     }
 
@@ -129,8 +141,21 @@ impl StorageEngine {
             } else if let Err(error) = res {
                 debug!(error=%error, "Ignoring drop error for {} due to `IF EXISTS`", name);
             }
+            // TODO measure. Does one pass over but potential multiple passes over the tables vec
+            // perform better than this. Or moving things into some sort of set.
+            self.cf_names.retain(|x| x != name);
+            self.auto_incs.retain(|k, _| &k.table != name);
         }
+
         Ok(())
+    }
+
+    pub fn get_schema(&self) -> anyhow::Result<Schema> {
+        let mut tables = BTreeMap::new();
+        for table_name in &self.cf_names {
+            tables.insert(table_name.to_string(), self.table_metadata(table_name)?);
+        }
+        Ok(Schema { tables })
     }
 
     pub fn table_metadata(&self, name: impl AsRef<str>) -> anyhow::Result<ColumnDescriptors> {
@@ -229,8 +254,8 @@ impl StorageEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use indexmap::IndexMap;
     use sqlparser::ast::{self, DataType, Expr};
-    use std::collections::BTreeMap;
     use tracing_test::traced_test;
     use uuid::Uuid;
 
@@ -253,7 +278,7 @@ mod tests {
     }
 
     fn default_fixture() -> CreateTableOptions {
-        let mut columns = BTreeMap::new();
+        let mut columns = IndexMap::new();
         columns.insert(
             "id".to_string(),
             ColumnDescriptor {
@@ -302,6 +327,12 @@ mod tests {
         let opt = default_fixture();
 
         engine.create_table(&opt).unwrap();
+
+        assert!(engine.cf_names.contains(&String::from("users")));
+        assert!(engine
+            .auto_incs
+            .iter()
+            .any(|(k, _)| k.table == "users" && k.column == "id"));
 
         let metadata = engine.table_metadata("users").unwrap();
 

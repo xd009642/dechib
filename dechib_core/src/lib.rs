@@ -9,6 +9,7 @@ pub mod expressions;
 pub mod logical_planner;
 pub mod parser_utils;
 pub mod query_engine;
+pub mod schema;
 pub mod storage_engine;
 pub mod types;
 
@@ -76,8 +77,8 @@ pub fn setup_logging() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use indexmap::IndexMap;
     use sqlparser::ast::DataType;
-    use std::collections::BTreeMap;
     use tracing_test::traced_test;
     use uuid::Uuid;
 
@@ -105,7 +106,7 @@ mod tests {
         let handle = TableHandle::new();
         let mut engine = Instance::new_with_path(&handle.path);
 
-        let mut columns = BTreeMap::new();
+        let mut columns = IndexMap::new();
         columns.insert(
             "id".to_string(),
             ColumnDescriptor {

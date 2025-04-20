@@ -12,6 +12,7 @@ crate-type = ["lib"]
 anyhow = "1.0.86"
 bigdecimal = { version = "0.4.3", features = ["serde"] }
 hex = "0.4.3"
+indexmap = { version = "2.9.0", features = ["serde"] }
 postcard = { version = "1.0.8", features = ["alloc", "const_format"] }
 rocksdb = "0.22.0"
 serde = { version = "1.0.202", features = ["derive", "rc"] }
