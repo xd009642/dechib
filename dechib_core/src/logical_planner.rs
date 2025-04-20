@@ -19,6 +19,7 @@
 //! 4. Merging predicates
 use crate::expressions::Expression;
 use crate::parser_utils::*;
+use crate::schema::Schema;
 use sqlparser::ast::{Expr, Query, Select, SelectItem, SetExpr, TableFactor};
 use tracing::{debug, info, warn};
 
@@ -54,12 +55,12 @@ pub enum LogicalPlan {
     Noop,
 }
 
-impl TryFrom<&Query> for LogicalPlan {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &Query) -> Result<Self, Self::Error> {
+impl LogicalPlan {
+    /// Create a new `LogicalPlan`. In future `Schema` may become a value so I can make it mutable
+    /// and add in temporary tables/views which may be created.
+    pub fn new(value: &Query, schema: &Schema) -> anyhow::Result<Self> {
         let mut plan = match value.body.as_ref() {
-            SetExpr::Select(select) => select_to_logical_plan(select)?,
+            SetExpr::Select(select) => select_to_logical_plan(select, schema)?,
             _ => anyhow::bail!("Unsupported body: {:?}", value.body),
         };
 
@@ -99,14 +100,17 @@ impl TryFrom<&Query> for LogicalPlan {
     }
 }
 
-fn select_to_logical_plan(select: &Select) -> anyhow::Result<LogicalPlan> {
+fn select_to_logical_plan(select: &Select, schema: &Schema) -> anyhow::Result<LogicalPlan> {
     let mut tables = Vec::with_capacity(select.from.len());
     for table in &select.from {
         match &table.relation {
             TableFactor::Table { name, .. } => {
-                tables.push(Box::new(LogicalPlan::TableScan(TableScan {
-                    table_name: name.to_string(),
-                })));
+                let table_name = name.to_string();
+                if schema.contains_table(&table_name) {
+                    tables.push(Box::new(LogicalPlan::TableScan(TableScan { table_name })));
+                } else {
+                    anyhow::bail!("Table `{}` does not exist", name);
+                }
             }
             _ => anyhow::bail!("Unsupported relation: {:?}", table.relation),
         }

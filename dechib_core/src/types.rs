@@ -186,15 +186,12 @@ impl InsertOptions {
 }
 
 impl Command {
-    pub fn parse_statement(
-        statement: &Statement,
-        storage: &StorageEngine,
-    ) -> Result<Self, anyhow::Error> {
+    pub fn parse_statement(statement: &Statement, storage: &StorageEngine) -> anyhow::Result<Self> {
         debug!("Processing statement {:?}", statement);
         match statement {
             Statement::CreateTable(opts) => process_create_table(opts),
-            Statement::Insert(insert) => process_insert(insert, storage.get_schema()?),
-            Statement::Query(query) => process_query(query),
+            Statement::Insert(insert) => process_insert(insert),
+            Statement::Query(query) => process_query(query, storage.get_schema()?),
             Statement::Drop {
                 object_type: ObjectType::Table,
                 if_exists,
@@ -214,8 +211,8 @@ impl Command {
     }
 }
 
-fn process_query(query: &Query) -> anyhow::Result<Command> {
-    let logical_plan = LogicalPlan::try_from(query)?;
+fn process_query(query: &Query, schema: Schema) -> anyhow::Result<Command> {
+    let logical_plan = LogicalPlan::new(query, &schema)?;
     debug!("Logical plan: {:?}", logical_plan);
     Ok(Command::Select(QueryOptions { logical_plan }))
 }
@@ -325,7 +322,7 @@ fn process_create_table(opts: &CreateTable) -> anyhow::Result<Command> {
     }))
 }
 
-fn process_insert(insert: &Insert, schema: Schema) -> anyhow::Result<Command> {
+fn process_insert(insert: &Insert) -> anyhow::Result<Command> {
     let columns = insert.columns.iter().map(|x| x.to_string()).collect();
     let mut dup_check = HashSet::new();
     for col in &columns {
