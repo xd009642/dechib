@@ -157,19 +157,10 @@ fn select_to_logical_plan(select: &Select, schema: &Schema) -> anyhow::Result<Lo
                     let name = i.to_string();
                     let (table, column) = schema.resolve_column_name(&name, &table_names)?;
 
-                    if table_count == 1 {
-                        // Maybe we still need to support stripping the table name here
-                        projection.columns.push(name);
-                    } else {
-                        if let LogicalPlan::TableScan(scan) = projection.data.as_ref() {
-                            if name.starts_with(&scan.table_name) {
-                                let col_name =
-                                    name.strip_prefix(&scan.table_name).unwrap().to_string();
-                                projection.columns.push(col_name);
-                                break;
-                            }
-                        }
-                    }
+                    projection.columns.push(Column {
+                        table: Some(table),
+                        column,
+                    });
                 } else {
                     anyhow::bail!("Can only retrieve identifiers from tables currently");
                 }
@@ -249,7 +240,7 @@ pub struct Selection {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Projection {
     data: Box<LogicalPlan>,
-    columns: Vec<String>,
+    columns: Vec<Column>,
     select_all: bool,
 }
 
@@ -283,7 +274,7 @@ pub enum SortDirection {
 pub struct Sorting {
     data: Box<LogicalPlan>,
     /// How am I storing predicates?
-    columns: Vec<String>,
+    columns: Vec<Column>,
     direction: SortDirection,
 }
 
@@ -298,4 +289,10 @@ pub struct Limit {
     skip: Option<usize>,
     take: Option<usize>,
     input: Box<LogicalPlan>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Column {
+    table: Option<String>,
+    column: String,
 }
