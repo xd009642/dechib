@@ -5,7 +5,8 @@ track of things. So here starts the diary.
 
 ## TODO
 
-* Insert schema stuff into the LogicalPlan creation so that `*` works etc.
+* Insert schema stuff into the LogicalPlan creation so that `*` works etc. (Might not be needed for *)
+* Create a `Visitor` trait for `LogicalPlan` that I can implement for things like printing etc
 * Autoincrement will stop working if you close and reopen the database
 * Logical plan implementation for filtering, sorting and think about joins...
 * Proper DATE type

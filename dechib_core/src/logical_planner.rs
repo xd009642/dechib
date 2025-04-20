@@ -102,11 +102,13 @@ impl LogicalPlan {
 
 fn select_to_logical_plan(select: &Select, schema: &Schema) -> anyhow::Result<LogicalPlan> {
     let mut tables = Vec::with_capacity(select.from.len());
+    let mut table_names = vec![];
     for table in &select.from {
         match &table.relation {
             TableFactor::Table { name, .. } => {
                 let table_name = name.to_string();
                 if schema.contains_table(&table_name) {
+                    table_names.push(table_name.clone());
                     tables.push(Box::new(LogicalPlan::TableScan(TableScan { table_name })));
                 } else {
                     anyhow::bail!("Table `{}` does not exist", name);
@@ -153,6 +155,8 @@ fn select_to_logical_plan(select: &Select, schema: &Schema) -> anyhow::Result<Lo
                 debug!(expr=?expr, "Check select expression");
                 if let Expr::Identifier(i) = expr {
                     let name = i.to_string();
+                    let (table, column) = schema.resolve_column_name(&name, &table_names)?;
+
                     if table_count == 1 {
                         // Maybe we still need to support stripping the table name here
                         projection.columns.push(name);
