@@ -362,6 +362,9 @@ mod tests {
 
         engine.delete_tables(&opts).unwrap();
 
+        assert!(!engine.cf_names.iter().any(|x| x == "users"));
+        assert!(!engine.auto_incs.keys().any(|x| x.table == "users"));
+
         assert!(engine.table_metadata("users").is_err());
 
         let opts = DropTableOptions {
