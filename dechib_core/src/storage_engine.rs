@@ -336,7 +336,12 @@ mod tests {
 
         let metadata = engine.table_metadata("users").unwrap();
 
+        let full_schema = engine.get_schema().unwrap();
+
         assert_eq!(metadata, opt.columns);
+
+        assert_eq!(full_schema.tables["users"], metadata);
+        assert_eq!(full_schema.tables.len(), 1);
 
         std::mem::drop(engine);
 
