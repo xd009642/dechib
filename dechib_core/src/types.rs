@@ -1,4 +1,6 @@
 use crate::logical_planner::LogicalPlan;
+use crate::schema::Schema;
+use crate::storage_engine::StorageEngine;
 use anyhow::Context;
 use bigdecimal::BigDecimal;
 use indexmap::IndexMap;
@@ -184,7 +186,10 @@ impl InsertOptions {
 }
 
 impl Command {
-    pub fn parse_statement(statement: &Statement) -> Result<Self, anyhow::Error> {
+    pub fn parse_statement(
+        statement: &Statement,
+        storage: &StorageEngine,
+    ) -> Result<Self, anyhow::Error> {
         debug!("Processing statement {:?}", statement);
         match statement {
             Statement::CreateTable(opts) => {
@@ -301,7 +306,7 @@ impl Command {
                     columns: descriptor,
                 }))
             }
-            Statement::Insert(insert) => process_insert(insert),
+            Statement::Insert(insert) => process_insert(insert, storage.get_schema()?),
             Statement::Query(query) => process_query(query),
             Statement::Drop {
                 object_type: ObjectType::Table,
@@ -328,7 +333,7 @@ fn process_query(query: &Query) -> anyhow::Result<Command> {
     Ok(Command::Select(QueryOptions { logical_plan }))
 }
 
-fn process_insert(insert: &Insert) -> anyhow::Result<Command> {
+fn process_insert(insert: &Insert, schema: Schema) -> anyhow::Result<Command> {
     let columns = insert.columns.iter().map(|x| x.to_string()).collect();
     let mut dup_check = HashSet::new();
     for col in &columns {
