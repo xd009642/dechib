@@ -16,7 +16,7 @@ impl QueryEngine {
         let mut res = Vec::with_capacity(parsed.len());
 
         for statement in &parsed {
-            res.push(Command::try_from(statement)?);
+            res.push(Command::parse_statement(statement)?);
         }
         Ok(res)
     }

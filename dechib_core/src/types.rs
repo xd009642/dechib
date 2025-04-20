@@ -183,10 +183,8 @@ impl InsertOptions {
     }
 }
 
-impl TryFrom<&Statement> for Command {
-    type Error = anyhow::Error;
-
-    fn try_from(statement: &Statement) -> Result<Self, Self::Error> {
+impl Command {
+    pub fn parse_statement(statement: &Statement) -> Result<Self, anyhow::Error> {
         debug!("Processing statement {:?}", statement);
         match statement {
             Statement::CreateTable(opts) => {
