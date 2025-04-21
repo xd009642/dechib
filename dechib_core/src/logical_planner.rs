@@ -23,6 +23,76 @@ use crate::schema::Schema;
 use sqlparser::ast::{Expr, Query, Select, SelectItem, SetExpr, TableFactor};
 use tracing::{debug, info, warn};
 
+pub trait Visit {
+    fn visit_logical_plan(&mut self, plan: &LogicalPlan) {
+        match plan {
+            LogicalPlan::TableScan(table_scan) => self.visit_table_scan(table_scan),
+            LogicalPlan::Union(union) => self.visit_union(union),
+            LogicalPlan::Intersection(intersection) => self.visit_intersection(intersection),
+            LogicalPlan::Difference(difference) => self.visit_difference(difference),
+            LogicalPlan::Selection(selection) => self.visit_selection(selection),
+            LogicalPlan::Projection(projection) => self.visit_projection(projection),
+            LogicalPlan::Join(join) => self.visit_join(join),
+            LogicalPlan::DuplicateElimination(duplicate_elimination) => {
+                self.visit_duplicate_elimination(duplicate_elimination)
+            }
+            LogicalPlan::Limit(limit) => self.visit_limit(limit),
+            LogicalPlan::Aggregation(aggregation) => self.visit_aggregation(aggregation),
+            LogicalPlan::Sorting(sorting) => self.visit_sorting(sorting),
+            LogicalPlan::Rename(rename) => self.visit_rename(rename),
+            LogicalPlan::Noop => {}
+        }
+    }
+
+    fn visit_table_scan(&mut self, table_scan: &TableScan) {}
+
+    fn visit_union(&mut self, union: &Union) {
+        self.visit_logical_plan(&union.left);
+        self.visit_logical_plan(&union.right);
+    }
+
+    fn visit_intersection(&mut self, intersection: &Intersection) {
+        self.visit_logical_plan(&intersection.left);
+        self.visit_logical_plan(&intersection.right);
+    }
+
+    fn visit_difference(&mut self, difference: &Difference) {
+        self.visit_logical_plan(&difference.left);
+        self.visit_logical_plan(&difference.right)
+    }
+
+    fn visit_selection(&mut self, selection: &Selection) {
+        self.visit_logical_plan(&selection.data)
+    }
+
+    fn visit_projection(&mut self, projection: &Projection) {
+        self.visit_logical_plan(&projection.data)
+    }
+
+    fn visit_join(&mut self, join: &Join) {
+        self.visit_logical_plan(&join.left);
+        self.visit_logical_plan(&join.right);
+    }
+
+    fn visit_duplicate_elimination(&mut self, duplicate_elimination: &DuplicateElimination) {
+        self.visit_logical_plan(&duplicate_elimination.data)
+    }
+
+    fn visit_limit(&mut self, limit: &Limit) {}
+
+    fn visit_aggregation(&mut self, aggregation: &Aggregation) {
+        self.visit_logical_plan(&aggregation.data)
+    }
+
+    fn visit_sorting(&mut self, sorting: &Sorting) {
+        self.visit_logical_plan(&sorting.data)
+    }
+
+    fn visit_rename(&mut self, rename: &Rename) {
+        self.visit_logical_plan(&rename.data)
+    }
+}
+
 /// Logical plan operation
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LogicalPlan {
