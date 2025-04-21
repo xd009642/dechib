@@ -20,6 +20,12 @@ track of things. So here starts the diary.
 * [Query Engines Push vs Pull](https://justinjaffray.com/query-engines-push-vs.-pull/)
 * [How Query Engines Work](https://howqueryengineswork.com/00-acknowledgments.html) - holy hell!
 
+## 2025-04-21
+
+* Added visit trait
+* Started using schema to validate table and column names. Refactored projection
+* Added column name type used in projections etc
+
 ## 2025-04-20
 
 * Preserve the column ordering from INSERT statements
