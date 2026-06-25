@@ -268,7 +268,6 @@ dependencies = [
  "serde",
  "sqlparser",
  "tempfile",
- "tokio",
  "tracing",
  "tracing-subscriber",
  "tracing-test",

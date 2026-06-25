@@ -20,6 +20,11 @@ track of things. So here starts the diary.
 * [Query Engines Push vs Pull](https://justinjaffray.com/query-engines-push-vs.-pull/)
 * [How Query Engines Work](https://howqueryengineswork.com/00-acknowledgments.html) - holy hell!
 
+## 2026-06-25
+
+* Started looking at making a binder to resolve names in queries to column references resolved via the schema
+    - These column refs can then be used by the logical planner instead of the raw SQL idents
+
 ## 2025-04-21
 
 * Added visit trait
