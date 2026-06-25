@@ -1,5 +1,5 @@
-use sqlparser::ast::{DataType, Query};
 use crate::schema::Schema;
+use sqlparser::ast::{DataType, Query};
 
 // Column Ref like { table, name, index, datatype }
 
@@ -9,11 +9,9 @@ pub struct ColumnRef {
     data_type: DataType,
 }
 
-pub struct BoundPlan {
-    
-}
+pub struct BoundPlan {}
 
-/// From here 
+/// From here
 pub fn bind_query(value: &Query, schema: &Schema) -> anyhow::Result<BoundPlan> {
     todo!()
 }
